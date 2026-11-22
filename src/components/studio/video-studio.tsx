@@ -9,10 +9,10 @@ import {
   Film,
   ImageDown,
   Loader2,
+  Package,
   Pause,
   Pipette,
   Play,
-  Scissors,
   Sparkles,
   TestTube2,
   Upload,
@@ -32,7 +32,7 @@ import {
   waitForPresentedFrame,
   type VideoMeta,
 } from "@/lib/cv/video-extract";
-import { cloneCanvas, fitInto, frameName } from "@/lib/cv/frame-utils";
+import { cloneCanvas, downloadFramesZip, fitInto, frameName } from "@/lib/cv/frame-utils";
 import { encodeTestGif, recordTestVideo } from "@/lib/cv/test-generators";
 import { hexToRgb, rgbToHex } from "@/lib/cv/color-utils";
 import { useFrameStore } from "@/lib/store";
@@ -55,6 +55,7 @@ export function VideoStudio() {
   const [busySource, setBusySource] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [prefix, setPrefix] = useState("vid");
+  const [autoZip, setAutoZip] = useState(true);
 
   const [chromaEnabled, setChromaEnabled] = useState(true);
   const [chromaHex, setChromaHex] = useState("#00B140");
@@ -445,16 +446,27 @@ export function VideoStudio() {
         return;
       }
       const n = addFrames(inputs);
-      toast.success(`${n} فریم به انیماتور اضافه شد`, {
-        description: chroma.enabled ? "با کروماکی اعمال‌شده" : "بدون کروماکی",
-      });
+      if (autoZip) {
+        toast.loading("در حال ساخت ZIP شفاف...", { id: "vid-zip" });
+        await downloadFramesZip(inputs, `${prefix.trim() || "vid"}-frames`, 0.95);
+        toast.success(`${n} فایل استخراج‌شده دانلود شد`, {
+          id: "vid-zip",
+          description: chroma.enabled
+            ? "ZIP با فریم‌های WebP شفاف کروماکی‌شده — در انیماتور هم آماده است"
+            : "در تب انیماتور هم آماده است",
+        });
+      } else {
+        toast.success(`${n} فریم به انیماتور اضافه شد`, {
+          description: chroma.enabled ? "با کروماکی اعمال‌شده" : "بدون کروماکی",
+        });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "خطا در استخراج فریم‌ها");
     } finally {
       setProgress(null);
       cancelRef.current = false;
     }
-  }, [addFrames, count, gifFrames, mode, prefix, targetIndices, videoMeta]);
+  }, [addFrames, autoZip, count, gifFrames, mode, prefix, targetIndices, videoMeta]);
 
   const totalFrames =
     mode === "gif"
@@ -467,17 +479,19 @@ export function VideoStudio() {
   const sourceReady = mode !== "idle";
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
+    <div className="flex flex-col gap-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime,image/gif,.mp4,.webm,.mov,.gif"
+        className="hidden"
+        onChange={(e) => onFiles(e.target.files)}
+      />
+      <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
       {/* ---------- preview column ---------- */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/mp4,video/webm,video/quicktime,image/gif,.mp4,.webm,.mov,.gif"
-            className="hidden"
-            onChange={(e) => onFiles(e.target.files)}
-          />
+        {sourceReady && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl panel-glass p-2.5">
           <Button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -493,7 +507,7 @@ export function VideoStudio() {
             onClick={() => void testVideo()}
             className="border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:border-emerald-400/60"
           >
-            {busySource && mode === "idle" ? (
+            {busySource ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <TestTube2 className="h-4 w-4" />
@@ -510,20 +524,20 @@ export function VideoStudio() {
             <Sparkles className="h-4 w-4" />
             گیف متحرک تستی
           </Button>
-          {sourceReady && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={resetSource}
-              className="text-slate-400 hover:text-rose-300"
-            >
-              بستن منبع
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={resetSource}
+            className="mr-auto text-slate-400 hover:text-rose-300"
+          >
+            بستن منبع
+          </Button>
         </div>
+        )}
 
-        <div className="relative overflow-hidden rounded-xl border border-white/10 checker-dark">
+        {sourceReady ? (
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 checker-dark">
           <canvas
             ref={previewCanvasRef}
             width={720}
@@ -534,19 +548,6 @@ export function VideoStudio() {
               eyedropper && "cursor-crosshair"
             )}
           />
-
-          {!sourceReady && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
-              <div className="rounded-2xl metallic-gradient p-[1.5px]">
-                <div className="rounded-2xl bg-slate-950/85 px-8 py-6">
-                  <p className="text-sm font-bold metallic-text">منبعی انتخاب نشده است</p>
-                  <p className="mt-1.5 text-xs text-slate-400">
-                    ویدیو یا گیف آپلود کنید یا یکی از دکمه‌های تستی را بزنید
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {mode === "gif" && gifFrames.length > 0 && (
             <div className="absolute right-3 top-3 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] text-cyan-300 border border-white/10 backdrop-blur">
@@ -559,6 +560,86 @@ export function VideoStudio() {
             </div>
           )}
         </div>
+        ) : (
+        <div
+          className="hero-dots relative overflow-hidden rounded-3xl border-2 border-dashed border-cyan-400/25 bg-slate-950/40 p-8 text-center sm:p-10"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            onFiles(e.dataTransfer.files);
+          }}
+        >
+          <div className="pointer-events-none absolute -top-24 right-1/2 h-64 w-64 translate-x-1/2 rounded-full bg-cyan-400/15 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-56 rounded-full bg-violet-500/15 blur-3xl" />
+          <div className="relative">
+            <div className="hero-icon-glow mx-auto grid h-20 w-20 place-items-center rounded-2xl border border-cyan-400/40 bg-cyan-400/15">
+              <FileVideo className="h-9 w-9 text-cyan-300" />
+            </div>
+            <h2 className="mt-5 text-xl font-black metallic-text sm:text-2xl">
+              ویدیو یا گیف را به فریم‌های شفاف تبدیل کنید
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
+              فایل را اینجا رها کنید یا بدون آپلود، با یک کلیک منبع تستی بسازید — کروماکی زنده
+              روی پیش‌نمایش اعمال می‌شود و خروجی ZIP شفاف دانلود می‌شود.
+            </p>
+
+            <div className="mt-7 grid gap-3 text-right sm:grid-cols-3">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+                className="group cursor-pointer rounded-2xl metallic-gradient p-[1.5px] transition-transform hover:scale-[1.02]"
+              >
+                <div className="flex h-full flex-col gap-1.5 rounded-[calc(1rem-1px)] bg-slate-950/85 p-4">
+                  <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-violet-400/40 bg-violet-500/15 text-violet-300">
+                    <Upload className="h-5 w-5" />
+                  </span>
+                  <span className="text-sm font-black text-white">آپلود ویدیو / گیف</span>
+                  <span className="text-[11px] leading-4 text-slate-400">
+                    کشیدن و رها کردن هم کار می‌کند
+                  </span>
+                  <span className="mt-auto pt-1 font-mono text-[10px] text-slate-500" dir="ltr">
+                    MP4 · WebM · MOV · GIF
+                  </span>
+                </div>
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => void testVideo()}
+                onKeyDown={(e) => e.key === "Enter" && void testVideo()}
+                className="cursor-pointer rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 transition-all hover:scale-[1.02] hover:border-emerald-400/60"
+              >
+                <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-emerald-400/40 bg-emerald-400/15 text-emerald-300">
+                  <TestTube2 className="h-5 w-5" />
+                </span>
+                <span className="block text-sm font-black text-emerald-100">ویدیوی تستی پرده سبز</span>
+                <span className="mt-1 block text-[11px] leading-4 text-slate-400">
+                  یک کلیک — بدون آپلود فایل
+                </span>
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => void testGif()}
+                onKeyDown={(e) => e.key === "Enter" && void testGif()}
+                className="cursor-pointer rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4 transition-all hover:scale-[1.02] hover:border-cyan-400/60"
+              >
+                <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-cyan-400/40 bg-cyan-400/15 text-cyan-300">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <span className="block text-sm font-black text-cyan-100">گیف متحرک تستی</span>
+                <span className="mt-1 block text-[11px] leading-4 text-slate-400">
+                  یک کلیک — بدون آپلود فایل
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
 
         {/* playback controls */}
         {mode === "video" && videoMeta && (
@@ -749,16 +830,15 @@ export function VideoStudio() {
             </div>
           </div>
         </section>
+      </div>
+      </div>
 
-        {/* extract */}
-        <section className="rounded-xl panel-glass p-4 space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-            <Scissors className="h-4 w-4 text-violet-400" />
-            استخراج و ارسال به انیماتور
-          </h3>
-          <div className="space-y-1.5">
-            <Label htmlFor="vid-prefix" className="text-xs text-slate-400">
-              پیشوند نام فریم‌ها
+      {/* ---------- sticky bottom action bar: extract + download ---------- */}
+      <div className="sticky bottom-3 z-30">
+        <div className="float-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-white/10 panel-glass px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="vid-prefix" className="shrink-0 text-xs text-slate-400">
+              پیشوند
             </Label>
             <input
               id="vid-prefix"
@@ -766,45 +846,52 @@ export function VideoStudio() {
               onChange={(e) => setPrefix(e.target.value)}
               dir="ltr"
               placeholder="vid"
-              className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-cyan-400/50"
+              className="w-24 rounded-lg border border-white/10 bg-slate-950/60 px-2.5 py-1.5 font-mono text-sm text-slate-200 outline-none focus:border-cyan-400/50"
             />
           </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 hover:border-cyan-400/40">
+            <Switch checked={autoZip} onCheckedChange={setAutoZip} aria-label="دانلود خودکار ZIP" />
+            <Package className="h-3.5 w-3.5 text-cyan-300" />
+            دانلود خودکار ZIP
+          </label>
           {progress && (
-            <div className="space-y-1.5">
-              <Progress value={(progress.current / progress.total) * 100} className="h-2" />
-              <p className="text-center text-xs text-slate-400">
-                {progress.current} / {progress.total} فریم
-              </p>
+            <div className="flex min-w-[170px] flex-1 items-center gap-2">
+              <Progress value={(progress.current / progress.total) * 100} className="h-2 flex-1" />
+              <span className="font-mono text-[11px] text-cyan-300" dir="ltr">
+                {progress.current}/{progress.total}
+              </span>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!sourceReady || !progress}
-              onClick={() => {
-                cancelRef.current = true;
-              }}
-              className="border border-rose-400/30 bg-rose-400/10 text-rose-200 hover:border-rose-400/60"
-            >
-              <CircleStop className="h-4 w-4" />
-              لغو
-            </Button>
+          <div className="mr-auto flex items-center gap-2">
+            {progress && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  cancelRef.current = true;
+                }}
+                className="border border-rose-400/30 bg-rose-400/10 text-rose-200 hover:border-rose-400/60"
+              >
+                <CircleStop className="h-4 w-4" />
+                لغو
+              </Button>
+            )}
             <Button
               type="button"
               disabled={!sourceReady || !!progress}
               onClick={() => void extract()}
               className="metallic-gradient text-white font-bold glow-purple hover:brightness-110"
             >
-              <ImageDown className="h-4 w-4" />
-              استخراج ({totalFrames})
+              {progress ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ImageDown className="h-4 w-4" />
+              )}
+              استخراج و دانلود ZIP
+              <span className="rounded-md bg-black/25 px-1.5 py-0.5 text-xs">{totalFrames}</span>
             </Button>
           </div>
-          <p className="text-[11px] leading-4 text-slate-500 flex items-start gap-1.5">
-            <FileVideo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
-            فرمت‌های MP4، WebM و MOV با موتور رسانه مرورگر و گیف با دیکدر کامل فریم‌ها (gifuct-js) پشتیبانی می‌شوند.
-          </p>
-        </section>
+        </div>
       </div>
     </div>
   );

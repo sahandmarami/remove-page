@@ -1,0 +1,812 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useRef, useState } from "react";
+     4→import {
+     5→  CircleStop,
+     6→  Droplets,
+     7→  Eye,
+     8→  FileVideo,
+     9→  Film,
+    10→  ImageDown,
+    11→  Loader2,
+    12→  Pause,
+    13→  Pipette,
+    14→  Play,
+    15→  Scissors,
+    16→  Sparkles,
+    17→  TestTube2,
+    18→  Upload,
+    19→} from "lucide-react";
+    20→import { toast } from "sonner";
+    21→import { Button } from "@/components/ui/button";
+    22→import { Slider } from "@/components/ui/slider";
+    23→import { Switch } from "@/components/ui/switch";
+    24→import { Label } from "@/components/ui/label";
+    25→import { Progress } from "@/components/ui/progress";
+    26→import { applyChromaKey, DEFAULT_CHROMA } from "@/lib/cv/chroma";
+    27→import { decodeGif, type DecodedFrame } from "@/lib/cv/gif";
+    28→import {
+    29→  extractFramesFromVideo,
+    30→  loadVideoMeta,
+    31→  waitFor,
+    32→  waitForPresentedFrame,
+    33→  type VideoMeta,
+    34→} from "@/lib/cv/video-extract";
+    35→import { cloneCanvas, fitInto, frameName } from "@/lib/cv/frame-utils";
+    36→import { encodeTestGif, recordTestVideo } from "@/lib/cv/test-generators";
+    37→import { hexToRgb, rgbToHex } from "@/lib/cv/color-utils";
+    38→import { useFrameStore } from "@/lib/store";
+    39→import { cn } from "@/lib/utils";
+    40→
+    41→type Mode = "idle" | "video" | "gif";
+    42→type Count = 8 | 12 | 16;
+    43→
+    44→const COUNTS: Count[] = [8, 12, 16];
+    45→
+    46→export function VideoStudio() {
+    47→  const addFrames = useFrameStore((s) => s.addFrames);
+    48→
+    49→  const [mode, setMode] = useState<Mode>("idle");
+    50→  const [srcName, setSrcName] = useState("");
+    51→  const [videoMeta, setVideoMeta] = useState<VideoMeta | null>(null);
+    52→  const [gifFrames, setGifFrames] = useState<DecodedFrame[]>([]);
+    53→  const [count, setCount] = useState<Count>(8);
+    54→  const [gifAll, setGifAll] = useState(false);
+    55→  const [busySource, setBusySource] = useState(false);
+    56→  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+    57→  const [prefix, setPrefix] = useState("vid");
+    58→
+    59→  const [chromaEnabled, setChromaEnabled] = useState(true);
+    60→  const [chromaHex, setChromaHex] = useState("#00B140");
+    61→  const [similarity, setSimilarity] = useState(DEFAULT_CHROMA.similarity);
+    62→  const [smoothness, setSmoothness] = useState(DEFAULT_CHROMA.smoothness);
+    63→  const [despill, setDespill] = useState(DEFAULT_CHROMA.despill);
+    64→  const [eyedropper, setEyedropper] = useState(false);
+    65→
+    66→  const [videoPlaying, setVideoPlaying] = useState(false);
+    67→  const [gifIdx, setGifIdx] = useState(0);
+    68→  const [gifPlaying, setGifPlaying] = useState(false);
+    69→
+    70→  const videoElRef = useRef<HTMLVideoElement | null>(null);
+    71→  const videoUrlRef = useRef<string | null>(null);
+    72→  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+    73→  const rawCanvasRef = useRef<HTMLCanvasElement>(null);
+    74→  const chromaWorkRef = useRef<HTMLCanvasElement>(null);
+    75→  const rafRef = useRef(0);
+    76→  const gifTimerRef = useRef<number>(0);
+    77→  const gifIdxRef = useRef(0);
+    78→  const cancelRef = useRef(false);
+    79→  const fileInputRef = useRef<HTMLInputElement>(null);
+    80→  const chromaRef = useRef({ enabled: chromaEnabled, hex: chromaHex, similarity, smoothness, despill });
+    81→  const modeRef = useRef<Mode>("idle");
+    82→  const gifFramesRef = useRef<DecodedFrame[]>([]);
+    83→
+    84→  chromaRef.current = { enabled: chromaEnabled, hex: chromaHex, similarity, smoothness, despill };
+    85→  gifIdxRef.current = gifIdx;
+    86→  modeRef.current = mode;
+    87→  gifFramesRef.current = gifFrames;
+    88→
+    89→  // ---------- preview rendering ----------
+    90→  const drawPreview = useCallback(() => {
+    91→    const canvas = previewCanvasRef.current;
+    92→    if (!canvas) return;
+    93→    const m = modeRef.current;
+    94→    let raw = rawCanvasRef.current;
+    95→    if (!raw) {
+    96→      raw = document.createElement("canvas");
+    97→      rawCanvasRef.current = raw;
+    98→    }
+    99→
+   100→    if (m === "video") {
+   101→      const v = videoElRef.current;
+   102→      if (!v || !v.videoWidth) return;
+   103→      if (raw.width !== v.videoWidth || raw.height !== v.videoHeight) {
+   104→        raw.width = v.videoWidth;
+   105→        raw.height = v.videoHeight;
+   106→      }
+   107→      raw.getContext("2d", { willReadFrequently: true })!.drawImage(v, 0, 0);
+   108→    } else if (m === "gif") {
+   109→      const f = gifFramesRef.current[gifIdxRef.current];
+   110→      if (!f) return;
+   111→      if (raw.width !== f.canvas.width || raw.height !== f.canvas.height) {
+   112→        raw.width = f.canvas.width;
+   113→        raw.height = f.canvas.height;
+   114→      }
+   115→      const rctx = raw.getContext("2d", { willReadFrequently: true })!;
+   116→      rctx.clearRect(0, 0, raw.width, raw.height);
+   117→      rctx.drawImage(f.canvas, 0, 0);
+   118→    } else {
+   119→      return;
+   120→    }
+   121→
+   122→    const chroma = chromaRef.current;
+   123→    const ctx = canvas.getContext("2d")!;
+   124→    const fit = fitInto(raw.width, raw.height, canvas.width, canvas.height);
+   125→    ctx.clearRect(0, 0, canvas.width, canvas.height);
+   126→
+   127→    if (!chroma.enabled) {
+   128→      ctx.drawImage(raw, fit.x, fit.y, fit.w, fit.h);
+   129→      return;
+   130→    }
+   131→
+   132→    let work = chromaWorkRef.current;
+   133→    if (!work) {
+   134→      work = document.createElement("canvas");
+   135→      chromaWorkRef.current = work;
+   136→    }
+   137→    if (work.width !== raw.width || work.height !== raw.height) {
+   138→      work.width = raw.width;
+   139→      work.height = raw.height;
+   140→    }
+   141→    const wctx = work.getContext("2d", { willReadFrequently: true })!;
+   142→    // copy the raw frame into the work canvas first, then key it out in place
+   143→    wctx.clearRect(0, 0, work.width, work.height);
+   144→    wctx.drawImage(raw, 0, 0);
+   145→    const img = wctx.getImageData(0, 0, work.width, work.height);
+   146→    applyChromaKey(img, {
+   147→      color: hexToRgb(chroma.hex),
+   148→      similarity: chroma.similarity,
+   149→      smoothness: chroma.smoothness,
+   150→      despill: chroma.despill,
+   151→    });
+   152→    wctx.putImageData(img, 0, 0);
+   153→    ctx.drawImage(work, fit.x, fit.y, fit.w, fit.h);
+   154→  }, []);
+   155→
+   156→  // redraw when settings change while paused
+   157→  useEffect(() => {
+   158→    if ((mode === "video" && !videoPlaying) || (mode === "gif" && !gifPlaying)) {
+   159→      drawPreview();
+   160→    }
+   161→  }, [chromaEnabled, chromaHex, similarity, smoothness, despill, gifIdx, drawPreview, gifPlaying, mode, videoPlaying]);
+   162→
+   163→  // video playback loop
+   164→  useEffect(() => {
+   165→    if (mode !== "video") return;
+   166→    const v = videoElRef.current;
+   167→    if (!v) return;
+   168→    const onSeeked = () => drawPreview();
+   169→    v.addEventListener("seeked", onSeeked);
+   170→    if (videoPlaying) {
+   171→      void v.play().catch(() => setVideoPlaying(false));
+   172→      const loop = () => {
+   173→        drawPreview();
+   174→        rafRef.current = requestAnimationFrame(loop);
+   175→      };
+   176→      rafRef.current = requestAnimationFrame(loop);
+   177→      return () => {
+   178→        cancelAnimationFrame(rafRef.current);
+   179→        v.removeEventListener("seeked", onSeeked);
+   180→        v.pause();
+   181→      };
+   182→    }
+   183→    v.pause();
+   184→    return () => v.removeEventListener("seeked", onSeeked);
+   185→  }, [videoPlaying, mode, drawPreview]);
+   186→
+   187→  // gif playback
+   188→  useEffect(() => {
+   189→    if (mode !== "gif" || !gifPlaying || gifFrames.length === 0) return;
+   190→    let cancelled = false;
+   191→    const step = () => {
+   192→      if (cancelled) return;
+   193→      const idx = (gifIdxRef.current + 1) % gifFrames.length;
+   194→      setGifIdx(idx);
+   195→      const delay = Math.max(33, gifFrames[idx]?.delayMs ?? 100);
+   196→      gifTimerRef.current = window.setTimeout(step, delay);
+   197→    };
+   198→    gifTimerRef.current = window.setTimeout(step, Math.max(33, gifFrames[gifIdxRef.current]?.delayMs ?? 100));
+   199→    return () => {
+   200→      cancelled = true;
+   201→      window.clearTimeout(gifTimerRef.current);
+   202→    };
+   203→  }, [gifPlaying, gifFrames, mode]);
+   204→
+   205→  // cleanup
+   206→  useEffect(() => {
+   207→    return () => {
+   208→      cancelAnimationFrame(rafRef.current);
+   209→      window.clearTimeout(gifTimerRef.current);
+   210→      videoElRef.current?.pause();
+   211→      videoElRef.current?.remove();
+   212→      if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
+   213→    };
+   214→  }, []);
+   215→
+   216→  // ---------- source loading ----------
+   217→  const resetSource = useCallback(() => {
+   218→    cancelAnimationFrame(rafRef.current);
+   219→    window.clearTimeout(gifTimerRef.current);
+   220→    videoElRef.current?.pause();
+   221→    videoElRef.current?.remove();
+   222→    if (videoUrlRef.current) {
+   223→      URL.revokeObjectURL(videoUrlRef.current);
+   224→      videoUrlRef.current = null;
+   225→    }
+   226→    videoElRef.current = null;
+   227→    setVideoMeta(null);
+   228→    setGifFrames([]);
+   229→    setMode("idle");
+   230→    setSrcName("");
+   231→    setVideoPlaying(false);
+   232→    setGifPlaying(false);
+   233→    setGifIdx(0);
+   234→    setProgress(null);
+   235→  }, []);
+   236→
+   237→  const loadVideo = useCallback(
+   238→    async (url: string, name: string) => {
+   239→      setBusySource(true);
+   240→      try {
+   241→        const { video, meta } = await loadVideoMeta(url);
+   242→        videoElRef.current = video;
+   243→        videoUrlRef.current = url;
+   244→        setVideoMeta(meta);
+   245→        setMode("video");
+   246→        setSrcName(name);
+   247→        setGifPlaying(false);
+   248→        setVideoPlaying(false);
+   249→        toast.success("ویدیو آماده است", {
+   250→          description: `${name} — ${meta.width}×${meta.height} — ${meta.duration.toFixed(2)} ثانیه`,
+   251→        });
+   252→        // seek to the start and wait for the first frame to actually present
+   253→        video.currentTime = 0;
+   254→        try {
+   255→          await waitFor(video, "seeked", 3000);
+   256→        } catch {
+   257→          /* already at 0 */
+   258→        }
+   259→        await waitForPresentedFrame(video);
+   260→        drawPreview();
+   261→      } catch (err) {
+   262→        toast.error("بارگذاری ویدیو ناموفق بود", {
+   263→          description: err instanceof Error ? err.message : "کدک یا فرمت پشتیبانی نمی‌شود",
+   264→        });
+   265→      } finally {
+   266→        setBusySource(false);
+   267→      }
+   268→    },
+   269→    [drawPreview]
+   270→  );
+   271→
+   272→  const loadGif = useCallback(
+   273→    async (blob: Blob, name: string) => {
+   274→      setBusySource(true);
+   275→      try {
+   276→        const decoded = await decodeGif(blob);
+   277→        setGifFrames(decoded.frames);
+   278→        setMode("gif");
+   279→        setSrcName(name);
+   280→        setGifIdx(0);
+   281→        setVideoPlaying(false);
+   282→        toast.success("گیف دیکد شد", {
+   283→          description: `${decoded.frames.length} فریم — ${decoded.width}×${decoded.height}`,
+   284→        });
+   285→        window.setTimeout(() => drawPreview(), 80);
+   286→      } catch (err) {
+   287→        toast.error("دیکد گیف ناموفق بود", {
+   288→          description: err instanceof Error ? err.message : undefined,
+   289→        });
+   290→      } finally {
+   291→        setBusySource(false);
+   292→      }
+   293→    },
+   294→    [drawPreview]
+   295→  );
+   296→
+   297→  const onFiles = useCallback(
+   298→    (files: FileList | null) => {
+   299→      const file = files?.[0];
+   300→      if (!file) return;
+   301→      resetSource();
+   302→      if (file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif")) {
+   303→        void loadGif(file, file.name);
+   304→      } else if (file.type.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(file.name)) {
+   305→        void loadVideo(URL.createObjectURL(file), file.name);
+   306→      } else {
+   307→        toast.error("فقط ویدیو (MP4/WebM/MOV) یا گیف پذیرفته می‌شود");
+   308→      }
+   309→    },
+   310→    [loadGif, loadVideo, resetSource]
+   311→  );
+   312→
+   313→  // ---------- one-click test generators ----------
+   314→  const testVideo = useCallback(async () => {
+   315→    resetSource();
+   316→    setBusySource(true);
+   317→    toast.loading("در حال ضبط ویدیوی تستی پرده سبز...", { id: "testvid" });
+   318→    try {
+   319→      const { url } = await recordTestVideo();
+   320→      toast.dismiss("testvid");
+   321→      await loadVideo(url, "test-green.webm");
+   322→    } catch (err) {
+   323→      toast.dismiss("testvid");
+   324→      toast.error(err instanceof Error ? err.message : "ساخت ویدیوی تستی ناموفق بود");
+   325→      setBusySource(false);
+   326→    }
+   327→  }, [loadVideo, resetSource]);
+   328→
+   329→  const testGif = useCallback(async () => {
+   330→    resetSource();
+   331→    setBusySource(true);
+   332→    toast.loading("در حال ساخت گیف متحرک تستی...", { id: "testgif" });
+   333→    try {
+   334→      const { blob } = await encodeTestGif();
+   335→      toast.dismiss("testgif");
+   336→      await loadGif(blob, "test-animation.gif");
+   337→    } catch (err) {
+   338→      toast.dismiss("testgif");
+   339→      toast.error(err instanceof Error ? err.message : "ساخت گیف تستی ناموفق بود");
+   340→      setBusySource(false);
+   341→    }
+   342→  }, [loadGif, resetSource]);
+   343→
+   344→  // ---------- eyedropper ----------
+   345→  const onPreviewClick = useCallback(
+   346→    (e: React.MouseEvent<HTMLCanvasElement>) => {
+   347→      if (!eyedropper) return;
+   348→      const raw = rawCanvasRef.current;
+   349→      if (!raw || (raw.width === 0 && raw.height === 0)) return;
+   350→      const rect = e.currentTarget.getBoundingClientRect();
+   351→      const x = Math.round(((e.clientX - rect.left) / rect.width) * raw.width);
+   352→      const y = Math.round(((e.clientY - rect.top) / rect.height) * raw.height);
+   353→      if (x < 0 || y < 0 || x >= raw.width || y >= raw.height) return;
+   354→      const ctx = raw.getContext("2d", { willReadFrequently: true })!;
+   355→      const d = ctx.getImageData(x, y, 1, 1).data;
+   356→      if (d[3] < 10) {
+   357→        toast.warning("این پیکسل شفاف است — رنگ دیگری انتخاب کنید");
+   358→        return;
+   359→      }
+   360→      setChromaHex(rgbToHex([d[0], d[1], d[2]]));
+   361→      setEyedropper(false);
+   362→      toast.success(`رنگ کلید: ${rgbToHex([d[0], d[1], d[2]])}`);
+   363→    },
+   364→    [eyedropper]
+   365→  );
+   366→
+   367→  // ---------- extraction ----------
+   368→  const targetIndices = useCallback((): number[] | "video" => {
+   369→    if (mode === "video") return "video";
+   370→    const len = gifFrames.length;
+   371→    if (gifAll) return Array.from({ length: len }, (_, i) => i);
+   372→    const n = Math.min(count, len);
+   373→    const idx: number[] = [];
+   374→    for (let i = 0; i < n; i++) {
+   375→      idx.push(Math.min(len - 1, Math.floor(((i + 0.5) * len) / n)));
+   376→    }
+   377→    return Array.from(new Set(idx));
+   378→  }, [count, gifAll, gifFrames.length, mode]);
+   379→
+   380→  const extract = useCallback(async () => {
+   381→    if (mode === "idle") {
+   382→      toast.error("ابتدا ویدیو یا گیف بارگذاری کنید");
+   383→      return;
+   384→    }
+   385→    cancelRef.current = false;
+   386→    videoElRef.current?.pause();
+   387→    setVideoPlaying(false);
+   388→    setGifPlaying(false);
+   389→
+   390→    const chroma = chromaRef.current;
+   391→    const applyTo = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
+   392→      if (!chroma.enabled) return canvas;
+   393→      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+   394→      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+   395→      applyChromaKey(img, {
+   396→        color: hexToRgb(chroma.hex),
+   397→        similarity: chroma.similarity,
+   398→        smoothness: chroma.smoothness,
+   399→        despill: chroma.despill,
+   400→      });
+   401→      ctx.putImageData(img, 0, 0);
+   402→      return canvas;
+   403→    };
+   404→
+   405→    try {
+   406→      const inputs: Array<{ name: string; canvas: HTMLCanvasElement; source: "video" }> = [];
+   407→
+   408→      if (mode === "video") {
+   409→        const v = videoElRef.current;
+   410→        if (!v || !videoMeta) return;
+   411→        const frames = await extractFramesFromVideo(
+   412→          v,
+   413→          videoMeta.duration,
+   414→          count,
+   415→          (p) => setProgress(p),
+   416→          () => cancelRef.current
+   417→        );
+   418→        frames.forEach((f, i) => {
+   419→          inputs.push({
+   420→            name: frameName(`${prefix.trim() || "vid"}_{i}`, i, frames.length),
+   421→            canvas: applyTo(f.canvas),
+   422→            source: "video",
+   423→          });
+   424→        });
+   425→      } else {
+   426→        const idx = targetIndices();
+   427→        const list = Array.isArray(idx) ? idx : [];
+   428→        for (let i = 0; i < list.length; i++) {
+   429→          if (cancelRef.current) break;
+   430→          const f = gifFrames[list[i]];
+   431→          if (!f) continue;
+   432→          const canvas = applyTo(cloneCanvas(f.canvas));
+   433→          inputs.push({
+   434→            name: frameName(`${prefix.trim() || "vid"}_{i}`, i, list.length),
+   435→            canvas,
+   436→            source: "video",
+   437→          });
+   438→          setProgress({ current: i + 1, total: list.length });
+   439→          await new Promise((r) => setTimeout(r, 0));
+   440→        }
+   441→      }
+   442→
+   443→      if (inputs.length === 0) {
+   444→        toast.warning("فریمی استخراج نشد");
+   445→        return;
+   446→      }
+   447→      const n = addFrames(inputs);
+   448→      toast.success(`${n} فریم به انیماتور اضافه شد`, {
+   449→        description: chroma.enabled ? "با کروماکی اعمال‌شده" : "بدون کروماکی",
+   450→      });
+   451→    } catch (err) {
+   452→      toast.error(err instanceof Error ? err.message : "خطا در استخراج فریم‌ها");
+   453→    } finally {
+   454→      setProgress(null);
+   455→      cancelRef.current = false;
+   456→    }
+   457→  }, [addFrames, count, gifFrames, mode, prefix, targetIndices, videoMeta]);
+   458→
+   459→  const totalFrames =
+   460→    mode === "gif"
+   461→      ? gifAll
+   462→        ? gifFrames.length
+   463→        : Math.min(count, gifFrames.length)
+   464→      : mode === "video"
+   465→        ? count
+   466→        : 0;
+   467→  const sourceReady = mode !== "idle";
+   468→
+   469→  return (
+   470→    <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
+   471→      {/* ---------- preview column ---------- */}
+   472→      <div className="flex flex-col gap-3">
+   473→        <div className="flex flex-wrap items-center gap-2">
+   474→          <input
+   475→            ref={fileInputRef}
+   476→            type="file"
+   477→            accept="video/mp4,video/webm,video/quicktime,image/gif,.mp4,.webm,.mov,.gif"
+   478→            className="hidden"
+   479→            onChange={(e) => onFiles(e.target.files)}
+   480→          />
+   481→          <Button
+   482→            type="button"
+   483→            onClick={() => fileInputRef.current?.click()}
+   484→            className="metallic-gradient text-white font-bold glow-purple hover:brightness-110"
+   485→          >
+   486→            <Upload className="h-4 w-4" />
+   487→            آپلود ویدیو / گیف
+   488→          </Button>
+   489→          <Button
+   490→            type="button"
+   491→            variant="secondary"
+   492→            disabled={busySource}
+   493→            onClick={() => void testVideo()}
+   494→            className="border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:border-emerald-400/60"
+   495→          >
+   496→            {busySource && mode === "idle" ? (
+   497→              <Loader2 className="h-4 w-4 animate-spin" />
+   498→            ) : (
+   499→              <TestTube2 className="h-4 w-4" />
+   500→            )}
+   501→            ویدیوی تستی پرده سبز
+   502→          </Button>
+   503→          <Button
+   504→            type="button"
+   505→            variant="secondary"
+   506→            disabled={busySource}
+   507→            onClick={() => void testGif()}
+   508→            className="border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:border-cyan-400/60"
+   509→          >
+   510→            <Sparkles className="h-4 w-4" />
+   511→            گیف متحرک تستی
+   512→          </Button>
+   513→          {sourceReady && (
+   514→            <Button
+   515→              type="button"
+   516→              variant="ghost"
+   517→              size="sm"
+   518→              onClick={resetSource}
+   519→              className="text-slate-400 hover:text-rose-300"
+   520→            >
+   521→              بستن منبع
+   522→            </Button>
+   523→          )}
+   524→        </div>
+   525→
+   526→        <div className="relative overflow-hidden rounded-xl border border-white/10 checker-dark">
+   527→          <canvas
+   528→            ref={previewCanvasRef}
+   529→            width={720}
+   530→            height={480}
+   531→            onClick={onPreviewClick}
+   532→            className={cn(
+   533→              "mx-auto block h-auto max-h-[480px] w-full cursor-default",
+   534→              eyedropper && "cursor-crosshair"
+   535→            )}
+   536→          />
+   537→
+   538→          {!sourceReady && (
+   539→            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
+   540→              <div className="rounded-2xl metallic-gradient p-[1.5px]">
+   541→                <div className="rounded-2xl bg-slate-950/85 px-8 py-6">
+   542→                  <p className="text-sm font-bold metallic-text">منبعی انتخاب نشده است</p>
+   543→                  <p className="mt-1.5 text-xs text-slate-400">
+   544→                    ویدیو یا گیف آپلود کنید یا یکی از دکمه‌های تستی را بزنید
+   545→                  </p>
+   546→                </div>
+   547→              </div>
+   548→            </div>
+   549→          )}
+   550→
+   551→          {mode === "gif" && gifFrames.length > 0 && (
+   552→            <div className="absolute right-3 top-3 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] text-cyan-300 border border-white/10 backdrop-blur">
+   553→              فریم {gifIdx + 1} / {gifFrames.length}
+   554→            </div>
+   555→          )}
+   556→          {mode === "video" && videoMeta && (
+   557→            <div className="absolute right-3 top-3 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] text-cyan-300 border border-white/10 backdrop-blur">
+   558→              {videoMeta.width}×{videoMeta.height} — {videoMeta.duration.toFixed(1)}s
+   559→            </div>
+   560→          )}
+   561→        </div>
+   562→
+   563→        {/* playback controls */}
+   564→        {mode === "video" && videoMeta && (
+   565→          <div className="flex items-center gap-2 rounded-xl panel-glass p-3">
+   566→            <Button
+   567→              type="button"
+   568→              size="icon"
+   569→              variant="secondary"
+   570→              className="border border-white/10 bg-white/5"
+   571→              onClick={() => setVideoPlaying((p) => !p)}
+   572→              aria-label={videoPlaying ? "توقف" : "پخش"}
+   573→            >
+   574→              {videoPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+   575→            </Button>
+   576→            <input
+   577→              type="range"
+   578→              min={0}
+   579→              max={Math.max(0.05, videoMeta.duration)}
+   580→              step={0.02}
+   581→              dir="ltr"
+   582→              className="h-1.5 flex-1 accent-violet-500"
+   583→              onChange={(e) => {
+   584→                const v = videoElRef.current;
+   585→                if (v) v.currentTime = Number(e.target.value);
+   586→              }}
+   587→              aria-label="جابجایی زمانی"
+   588→            />
+   589→            <span className="text-xs text-slate-400" dir="ltr">
+   590→              {srcName}
+   591→            </span>
+   592→          </div>
+   593→        )}
+   594→        {mode === "gif" && gifFrames.length > 0 && (
+   595→          <div className="flex items-center gap-2 rounded-xl panel-glass p-3">
+   596→            <Button
+   597→              type="button"
+   598→              size="icon"
+   599→              variant="secondary"
+   600→              className="border border-white/10 bg-white/5"
+   601→              onClick={() => setGifPlaying((p) => !p)}
+   602→              aria-label={gifPlaying ? "توقف" : "پخش"}
+   603→            >
+   604→              {gifPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+   605→            </Button>
+   606→            <Slider
+   607→              value={[gifIdx]}
+   608→              min={0}
+   609→              max={gifFrames.length - 1}
+   610→              step={1}
+   611→              onValueChange={(v) => {
+   612→                setGifPlaying(false);
+   613→                setGifIdx(v[0]);
+   614→              }}
+   615→              className="flex-1"
+   616→            />
+   617→            <span className="text-xs text-slate-400" dir="ltr">
+   618→              {srcName}
+   619→            </span>
+   620→          </div>
+   621→        )}
+   622→      </div>
+   623→
+   624→      {/* ---------- controls column ---------- */}
+   625→      <div className="flex flex-col gap-3">
+   626→        {/* frame count */}
+   627→        <section className="rounded-xl panel-glass p-4 space-y-3">
+   628→          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
+   629→            <Film className="h-4 w-4 text-violet-400" />
+   630→            تعداد فریم‌های استخراج
+   631→          </h3>
+   632→          <div className="grid grid-cols-3 gap-1.5">
+   633→            {COUNTS.map((c) => (
+   634→              <button
+   635→                key={c}
+   636→                type="button"
+   637→                onClick={() => {
+   638→                  setCount(c);
+   639→                  setGifAll(false);
+   640→                }}
+   641→                className={cn(
+   642→                  "rounded-lg border px-2 py-2 text-sm font-bold transition-colors",
+   643→                  count === c && !gifAll
+   644→                    ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-300 neon-ring"
+   645→                    : "border-white/10 bg-white/5 text-slate-300 hover:border-violet-400/40"
+   646→                )}
+   647→              >
+   648→                {c} فریم
+   649→              </button>
+   650→            ))}
+   651→          </div>
+   652→          {mode === "gif" && (
+   653→            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+   654→              <Label className="text-xs text-slate-300">همه فریم‌های اصلی گیف ({gifFrames.length})</Label>
+   655→              <Switch
+   656→                checked={gifAll}
+   657→                onCheckedChange={(v) => {
+   658→                  setGifAll(v);
+   659→                  if (v) toast.info(`هر ${gifFrames.length} فریم اصلی استخراج می‌شود`);
+   660→                }}
+   661→                aria-label="همه فریم‌ها"
+   662→              />
+   663→            </div>
+   664→          )}
+   665→          {mode === "video" && (
+   666→            <p className="text-[11px] leading-4 text-slate-500">
+   667→              نمونه‌برداری زمانی متوازن روی طول ویدیو اعمال می‌شود و به‌صورت غیرمسدودکننده با نوار پیشرفت اجرا خواهد شد.
+   668→            </p>
+   669→          )}
+   670→        </section>
+   671→
+   672→        {/* chroma key */}
+   673→        <section className="rounded-xl panel-glass p-4 space-y-3">
+   674→          <div className="flex items-center justify-between">
+   675→            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
+   676→              <Droplets className="h-4 w-4 text-emerald-400" />
+   677→              کروماکی زنده
+   678→            </h3>
+   679→            <Switch checked={chromaEnabled} onCheckedChange={setChromaEnabled} aria-label="کروماکی" />
+   680→          </div>
+   681→
+   682→          <div className={cn("space-y-3", !chromaEnabled && "opacity-45 pointer-events-none")}>
+   683→            <div className="flex items-center gap-2">
+   684→              <label
+   685→                className="relative h-9 w-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/20"
+   686→                style={{ backgroundColor: chromaHex }}
+   687→                aria-label="انتخاب رنگ کلید"
+   688→              >
+   689→                <input
+   690→                  type="color"
+   691→                  value={chromaHex}
+   692→                  onChange={(e) => setChromaHex(e.target.value)}
+   693→                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+   694→                />
+   695→              </label>
+   696→              <Button
+   697→                type="button"
+   698→                variant="secondary"
+   699→                size="sm"
+   700→                onClick={() => setEyedropper((v) => !v)}
+   701→                className={cn(
+   702→                  "flex-1 border",
+   703→                  eyedropper
+   704→                    ? "border-cyan-400/60 bg-cyan-400/15 text-cyan-300 neon-ring"
+   705→                    : "border-white/10 bg-white/5 text-slate-300"
+   706→                )}
+   707→              >
+   708→                {eyedropper ? <Eye className="h-4 w-4" /> : <Pipette className="h-4 w-4" />}
+   709→                {eyedropper ? "روی پیش‌نمایش کلیک کنید" : "قطره‌چکان"}
+   710→              </Button>
+   711→            </div>
+   712→            <div className="flex gap-1.5">
+   713→              {[
+   714→                { label: "پرده سبز", hex: "#00B140" },
+   715→                { label: "پرده آبی", hex: "#0047BB" },
+   716→                { label: "بنفش", hex: "#B026FF" },
+   717→              ].map((p) => (
+   718→                <button
+   719→                  key={p.hex}
+   720→                  type="button"
+   721→                  onClick={() => setChromaHex(p.hex)}
+   722→                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] text-slate-300 hover:border-violet-400/40"
+   723→                >
+   724→                  <span className="h-3 w-3 rounded-full border border-white/30" style={{ backgroundColor: p.hex }} />
+   725→                  {p.label}
+   726→                </button>
+   727→              ))}
+   728→            </div>
+   729→            <div>
+   730→              <div className="flex justify-between text-xs text-slate-400">
+   731→                <span>حساسیت کلید</span>
+   732→                <span className="text-cyan-300">{Math.round(similarity * 100)}٪</span>
+   733→              </div>
+   734→              <Slider value={[similarity]} min={0.02} max={0.9} step={0.01} onValueChange={(v) => setSimilarity(v[0])} className="mt-1.5" />
+   735→            </div>
+   736→            <div>
+   737→              <div className="flex justify-between text-xs text-slate-400">
+   738→                <span>نرمی لبه</span>
+   739→                <span className="text-cyan-300">{Math.round(smoothness * 100)}٪</span>
+   740→              </div>
+   741→              <Slider value={[smoothness]} min={0.01} max={0.6} step={0.01} onValueChange={(v) => setSmoothness(v[0])} className="mt-1.5" />
+   742→            </div>
+   743→            <div>
+   744→              <div className="flex justify-between text-xs text-slate-400">
+   745→                <span>خنثی‌سازی بازتاب پرده (Despill)</span>
+   746→                <span className="text-cyan-300">{Math.round(despill * 100)}٪</span>
+   747→              </div>
+   748→              <Slider value={[despill]} min={0} max={1} step={0.05} onValueChange={(v) => setDespill(v[0])} className="mt-1.5" />
+   749→            </div>
+   750→          </div>
+   751→        </section>
+   752→
+   753→        {/* extract */}
+   754→        <section className="rounded-xl panel-glass p-4 space-y-3">
+   755→          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
+   756→            <Scissors className="h-4 w-4 text-violet-400" />
+   757→            استخراج و ارسال به انیماتور
+   758→          </h3>
+   759→          <div className="space-y-1.5">
+   760→            <Label htmlFor="vid-prefix" className="text-xs text-slate-400">
+   761→              پیشوند نام فریم‌ها
+   762→            </Label>
+   763→            <input
+   764→              id="vid-prefix"
+   765→              value={prefix}
+   766→              onChange={(e) => setPrefix(e.target.value)}
+   767→              dir="ltr"
+   768→              placeholder="vid"
+   769→              className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-cyan-400/50"
+   770→            />
+   771→          </div>
+   772→          {progress && (
+   773→            <div className="space-y-1.5">
+   774→              <Progress value={(progress.current / progress.total) * 100} className="h-2" />
+   775→              <p className="text-center text-xs text-slate-400">
+   776→                {progress.current} / {progress.total} فریم
+   777→              </p>
+   778→            </div>
+   779→          )}
+   780→          <div className="grid grid-cols-2 gap-2">
+   781→            <Button
+   782→              type="button"
+   783→              variant="secondary"
+   784→              disabled={!sourceReady || !progress}
+   785→              onClick={() => {
+   786→                cancelRef.current = true;
+   787→              }}
+   788→              className="border border-rose-400/30 bg-rose-400/10 text-rose-200 hover:border-rose-400/60"
+   789→            >
+   790→              <CircleStop className="h-4 w-4" />
+   791→              لغو
+   792→            </Button>
+   793→            <Button
+   794→              type="button"
+   795→              disabled={!sourceReady || !!progress}
+   796→              onClick={() => void extract()}
+   797→              className="metallic-gradient text-white font-bold glow-purple hover:brightness-110"
+   798→            >
+   799→              <ImageDown className="h-4 w-4" />
+   800→              استخراج ({totalFrames})
+   801→            </Button>
+   802→          </div>
+   803→          <p className="text-[11px] leading-4 text-slate-500 flex items-start gap-1.5">
+   804→            <FileVideo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
+   805→            فرمت‌های MP4، WebM و MOV با موتور رسانه مرورگر و گیف با دیکدر کامل فریم‌ها (gifuct-js) پشتیبانی می‌شوند.
+   806→          </p>
+   807→        </section>
+   808→      </div>
+   809→    </div>
+   810→  );
+   811→}
+   812→

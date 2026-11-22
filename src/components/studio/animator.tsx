@@ -219,17 +219,18 @@ export function Animator() {
 
   if (frames.length === 0) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-xl panel-glass p-10 text-center">
-        <div className="rounded-2xl metallic-gradient p-[1.5px]">
-          <div className="rounded-2xl bg-slate-950/85 px-10 py-8">
-            <Clapperboard className="mx-auto h-10 w-10 text-violet-400" />
-            <p className="mt-4 text-sm font-bold metallic-text">هنوز فریمی وجود ندارد</p>
-            <p className="mt-2 max-w-md text-xs leading-5 text-slate-400">
-              از تب «برش‌زن شیت تصویر» کادرها را برش بزنید یا از تب «استودیو ویدیو و گیف» فریم‌های
-              کروماکی‌شده استخراج کنید تا در اینجا فلپ‌بوک، اسپرایت‌شیت و خروجی WebP فعال شود.
-            </p>
+      <div className="hero-dots flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-3xl panel-glass p-10 text-center">
+        <div className="relative">
+          <div className="pointer-events-none absolute -top-16 right-1/2 h-40 w-40 translate-x-1/2 rounded-full bg-fuchsia-500/20 blur-2xl" />
+          <div className="hero-icon-glow relative mx-auto grid h-20 w-20 place-items-center rounded-2xl metallic-gradient">
+            <Clapperboard className="h-9 w-9 text-white" />
           </div>
         </div>
+        <p className="text-lg font-black metallic-text">هنوز فریمی وجود ندارد</p>
+        <p className="max-w-md text-sm leading-6 text-slate-400">
+          از تب «برش‌زن شیت تصویر» کادرها را برش بزنید یا از تب «استودیو ویدیو و گیف» فریم‌های
+          کروماکی‌شده استخراج کنید تا فلپ‌بوک، اسپرایت‌شیت و خروجی WebP شفاف فعال شود.
+        </p>
       </div>
     );
   }
@@ -247,7 +248,7 @@ export function Animator() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-xl panel-glass p-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl panel-glass p-3">
           <Button
             type="button"
             size="icon"
@@ -315,7 +316,7 @@ export function Animator() {
         </div>
 
         {/* frames strip */}
-        <div className="rounded-xl panel-glass p-3">
+        <div className="rounded-2xl panel-glass p-3">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
               <PencilLine className="h-4 w-4 text-violet-400" />
@@ -397,7 +398,7 @@ export function Animator() {
       {/* ---------- right panels ---------- */}
       <div className="flex flex-col gap-3">
         {/* sprite sheet */}
-        <section className="rounded-xl panel-glass p-4 space-y-3">
+        <section className="rounded-2xl panel-glass p-4 space-y-3">
           <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
             <Grid3X3 className="h-4 w-4 text-violet-400" />
             سازنده اسپرایت‌شیت مشبک
@@ -494,7 +495,7 @@ export function Animator() {
         </section>
 
         {/* export */}
-        <section className="rounded-xl panel-glass p-4 space-y-3">
+        <section className="rounded-2xl panel-glass p-4 space-y-3">
           <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
             <Package className="h-4 w-4 text-cyan-400" />
             خروجی و دانلود

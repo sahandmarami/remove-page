@@ -214,6 +214,31 @@ export function buildSpriteSheet(
   return { canvas, meta };
 }
 
+/** Pack frames into a ZIP blob (in-browser, nothing is sent to any server). */
+export async function zipFramesToBlob(
+  frames: Array<{ name: string; canvas: HTMLCanvasElement }>,
+  quality = 0.92
+): Promise<Blob> {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  const folder = zip.folder("spriteforge-frames") ?? zip;
+  for (const frame of frames) {
+    const { blob, actualType } = await canvasToBlob(frame.canvas, "image/webp", quality);
+    folder.file(`${frame.name}.${extFor(actualType)}`, blob);
+  }
+  return zip.generateAsync({ type: "blob", compression: "STORE" });
+}
+
+/** Pack frames into a ZIP and trigger a browser download. */
+export async function downloadFramesZip(
+  frames: Array<{ name: string; canvas: HTMLCanvasElement }>,
+  zipName = "spriteforge-frames",
+  quality = 0.92
+): Promise<void> {
+  const blob = await zipFramesToBlob(frames, quality);
+  downloadBlob(blob, `${zipName}.zip`);
+}
+
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);

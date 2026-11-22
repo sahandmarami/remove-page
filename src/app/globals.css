@@ -232,6 +232,45 @@
   .canvas-crosshair {
     cursor: crosshair;
   }
+
+  /* ---------- graphical UI helpers ---------- */
+  /* dotted blueprint texture for empty-state heroes */
+  .hero-dots {
+    background-image: radial-gradient(oklch(0.62 0.16 295 / 0.22) 1px, transparent 1.4px);
+    background-size: 22px 22px;
+  }
+
+  /* subtle animated conic shimmer for active tab card border */
+  .tab-card {
+    position: relative;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  }
+  .tab-card:hover {
+    transform: translateY(-2px);
+  }
+  .tab-card[data-state="active"] {
+    box-shadow:
+      0 0 0 1px oklch(0.62 0.21 295 / 0.55),
+      0 10px 34px oklch(0.5 0.2 295 / 0.3),
+      inset 0 1px 0 oklch(0.85 0.1 295 / 0.12);
+  }
+
+  /* floating sticky action bar */
+  .float-bar {
+    box-shadow:
+      0 16px 48px oklch(0.08 0.02 285 / 0.72),
+      0 2px 10px oklch(0.08 0.02 285 / 0.5),
+      inset 0 1px 0 oklch(0.85 0.1 295 / 0.08);
+  }
+
+  /* soft breathing glow for hero icons */
+  .hero-icon-glow {
+    animation: hero-pulse 3.6s ease-in-out infinite;
+  }
+  @keyframes hero-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.62 0.21 295 / 0.35), 0 8px 30px oklch(0.55 0.22 295 / 0.35); }
+    50% { box-shadow: 0 0 0 10px oklch(0.62 0.21 295 / 0), 0 8px 40px oklch(0.55 0.22 295 / 0.5); }
+  }
 }
 
 /* thin numeric inputs */
