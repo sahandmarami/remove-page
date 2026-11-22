@@ -333,10 +333,10 @@ export function MaskEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl panel-glass border-white/10 max-h-[92vh] overflow-y-auto scroll-slim">
+      <DialogContent className="max-w-3xl panel-glass border-line max-h-[92vh] overflow-y-auto scroll-slim">
         <DialogHeader className="text-right">
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Wand2 className="h-4 w-4 text-cyan-400" />
+            <Wand2 className="h-4 w-4 text-cyan-ink" />
             ویرایشگر ماسک دستی
           </DialogTitle>
           <DialogDescription>
@@ -345,7 +345,7 @@ export function MaskEditor({
         </DialogHeader>
 
         <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-          <div className="rounded-xl border border-white/10 checker-dark overflow-hidden flex items-center justify-center min-h-[300px] p-2">
+          <div className="rounded-xl border border-line checker-dark overflow-hidden flex items-center justify-center min-h-[300px] p-2">
             <canvas
               ref={attachCanvas}
               className="max-w-full max-h-[420px] object-contain touch-none"
@@ -367,8 +367,8 @@ export function MaskEditor({
                   className={cn(
                     "flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors",
                     tool === t.id
-                      ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-300 neon-ring"
-                      : "border-white/10 bg-white/5 text-slate-300 hover:border-violet-400/40 hover:text-violet-300"
+                      ? "border-cyan-line-strong bg-cyan-tint text-cyan-ink neon-ring"
+                      : "border-line bg-chip text-soft hover:border-violet-line-strong hover:text-violet-ink"
                   )}
                   title={`${t.label} (${t.hint})`}
                 >
@@ -380,7 +380,7 @@ export function MaskEditor({
 
             {tool === "wand" && (
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">عمل چوب جادویی</Label>
+                <Label className="text-xs text-soft">عمل چوب جادویی</Label>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
@@ -388,8 +388,8 @@ export function MaskEditor({
                     className={cn(
                       "rounded-lg border px-2 py-1.5 text-xs",
                       wandAction === "erase"
-                        ? "border-rose-400/60 bg-rose-400/10 text-rose-300"
-                        : "border-white/10 bg-white/5 text-slate-300"
+                        ? "border-rose-line-strong bg-rose-tint text-rose-ink"
+                        : "border-line bg-chip text-soft"
                     )}
                   >
                     پاک‌سازی ناحیه
@@ -400,17 +400,17 @@ export function MaskEditor({
                     className={cn(
                       "rounded-lg border px-2 py-1.5 text-xs",
                       wandAction === "restore"
-                        ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-300"
-                        : "border-white/10 bg-white/5 text-slate-300"
+                        ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-ink"
+                        : "border-line bg-chip text-soft"
                     )}
                   >
                     بازیابی ناحیه
                   </button>
                 </div>
                 <div className="pt-1">
-                  <div className="flex justify-between text-xs text-slate-400">
+                  <div className="flex justify-between text-xs text-soft">
                     <span>آستانه چوب جادویی</span>
-                    <span className="text-cyan-300">{wandTolerance}</span>
+                    <span className="text-cyan-ink">{wandTolerance}</span>
                   </div>
                   <Slider
                     value={[wandTolerance]}
@@ -426,9 +426,9 @@ export function MaskEditor({
 
             {(tool === "eraser" || tool === "restore") && (
               <div>
-                <div className="flex justify-between text-xs text-slate-400">
+                <div className="flex justify-between text-xs text-soft">
                   <span>اندازه قلم‌مو</span>
-                  <span className="text-cyan-300">{brushSize}px</span>
+                  <span className="text-cyan-ink">{brushSize}px</span>
                 </div>
                 <Slider
                   value={[brushSize]}
@@ -442,13 +442,13 @@ export function MaskEditor({
             )}
 
             {picked && (
-              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2">
-                <CircleDot className="h-4 w-4 text-slate-400" />
+              <div className="flex items-center gap-2 rounded-lg border border-line bg-chip px-2.5 py-2">
+                <CircleDot className="h-4 w-4 text-soft" />
                 <span
-                  className="h-5 w-5 rounded border border-white/20"
+                  className="h-5 w-5 rounded border border-line-strong"
                   style={{ backgroundColor: rgbToHex(picked) }}
                 />
-                <span className="font-mono text-xs text-slate-300" dir="ltr">
+                <span className="font-mono text-xs text-soft" dir="ltr">
                   {rgbToHex(picked)}
                 </span>
               </div>
@@ -461,7 +461,7 @@ export function MaskEditor({
                 size="sm"
                 disabled={!canUndo}
                 onClick={undo}
-                className="border border-white/10 bg-white/5"
+                className="border border-line bg-chip"
               >
                 <Undo2 className="h-4 w-4" />
                 برگشت
@@ -472,7 +472,7 @@ export function MaskEditor({
                 size="sm"
                 disabled={!canRedo}
                 onClick={redo}
-                className="border border-white/10 bg-white/5"
+                className="border border-line bg-chip"
               >
                 <Redo2 className="h-4 w-4" />
                 ازنو
@@ -482,7 +482,7 @@ export function MaskEditor({
                 variant="secondary"
                 size="sm"
                 onClick={reset}
-                className="border border-white/10 bg-white/5"
+                className="border border-line bg-chip"
               >
                 <RotateCcw className="h-4 w-4" />
                 بازنشانی
@@ -490,7 +490,7 @@ export function MaskEditor({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="mask-frame-name" className="text-xs text-slate-400">
+              <Label htmlFor="mask-frame-name" className="text-xs text-soft">
                 نام فریم
               </Label>
               <input
@@ -498,7 +498,7 @@ export function MaskEditor({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 dir="ltr"
-                className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-cyan-400/50"
+                className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-cyan-line-strong"
               />
             </div>
 

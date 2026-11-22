@@ -33,6 +33,13 @@ interface BoxCanvasProps {
 }
 
 const HANDLE_SIZE = 9;
+/** bigger grab radius & visual size on touch devices (Android/iOS) */
+const COARSE_POINTER =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: coarse)").matches;
+const HANDLE_DRAW_SIZE = COARSE_POINTER ? 13 : HANDLE_SIZE;
+const HANDLE_HIT_SIZE = COARSE_POINTER ? 22 : HANDLE_SIZE;
 const MIN_BOX_PX = 6;
 
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -219,7 +226,7 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
             ctx.strokeStyle = "#8b5cf6";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.rect(hx - HANDLE_SIZE / 2, hy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+            ctx.rect(hx - HANDLE_DRAW_SIZE / 2, hy - HANDLE_DRAW_SIZE / 2, HANDLE_DRAW_SIZE, HANDLE_DRAW_SIZE);
             ctx.fill();
             ctx.stroke();
           }
@@ -281,7 +288,7 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
       const sh0 = selBox.h * view.scale;
       for (const hd of HANDLES) {
         const [hx, hy] = handlePoint(sx0, sy0, sw0, sh0, hd);
-        if (Math.abs(sx - hx) <= HANDLE_SIZE && Math.abs(sy - hy) <= HANDLE_SIZE) {
+        if (Math.abs(sx - hx) <= HANDLE_HIT_SIZE && Math.abs(sy - hy) <= HANDLE_HIT_SIZE) {
           return { kind: "handle", handle: hd };
         }
       }
@@ -549,7 +556,7 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
       ref={wrapRef}
       tabIndex={0}
       onKeyDown={onKeyDown}
-      className="relative h-full min-h-[340px] w-full overflow-hidden rounded-xl border border-white/10 checker-dark outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+      className="relative h-full min-h-[340px] w-full overflow-hidden rounded-xl border border-line checker-dark outline-none focus-visible:ring-2 focus-visible:ring-cyan-line-strong"
     >
       <canvas
         ref={canvasRef}
@@ -569,7 +576,7 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
           type="button"
           size="icon"
           variant="secondary"
-          className="h-8 w-8 bg-slate-900/80 backdrop-blur border border-white/10 hover:border-cyan-400/50"
+          className="h-11 w-11 bg-overlay backdrop-blur border border-line hover:border-cyan-line-strong sm:h-8 sm:w-8"
           onClick={() => zoomStep(1)}
           aria-label="بزرگ‌نمایی"
         >
@@ -579,7 +586,7 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
           type="button"
           size="icon"
           variant="secondary"
-          className="h-8 w-8 bg-slate-900/80 backdrop-blur border border-white/10 hover:border-cyan-400/50"
+          className="h-11 w-11 bg-overlay backdrop-blur border border-line hover:border-cyan-line-strong sm:h-8 sm:w-8"
           onClick={() => zoomStep(-1)}
           aria-label="کوچک‌نمایی"
         >
@@ -589,7 +596,7 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
           type="button"
           size="icon"
           variant="secondary"
-          className="h-8 w-8 bg-slate-900/80 backdrop-blur border border-white/10 hover:border-cyan-400/50"
+          className="h-11 w-11 bg-overlay backdrop-blur border border-line hover:border-cyan-line-strong sm:h-8 sm:w-8"
           onClick={fit}
           aria-label="اندازه‌گیری در کادر"
         >
@@ -597,7 +604,7 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
         </Button>
         <span
           ref={zoomChipRef}
-          className="mx-auto rounded-md bg-slate-900/80 px-1.5 py-0.5 text-[10px] font-medium text-cyan-300 border border-white/10 backdrop-blur"
+          className="mx-auto rounded-md bg-overlay px-1.5 py-0.5 text-xs font-medium text-cyan-ink border border-line backdrop-blur"
         >
           100%
         </span>
@@ -605,14 +612,14 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
 
       {/* info chips */}
       <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-        <span className="flex items-center gap-1 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] font-medium text-violet-300 border border-white/10 backdrop-blur">
+        <span className="flex items-center gap-1 rounded-md bg-overlay px-2 py-1 text-xs font-medium text-violet-ink border border-line backdrop-blur">
           <ScanSearch className="h-3.5 w-3.5" />
           {boxes.length} کادر
         </span>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-3 bottom-2.5 z-10 flex justify-center">
-        <span className="rounded-lg bg-slate-950/75 px-3 py-1.5 text-[10.5px] leading-4 text-slate-300 border border-white/10 backdrop-blur text-center">
+      <div className="pointer-events-none absolute inset-x-3 bottom-2.5 z-10 hidden justify-center sm:flex">
+        <span className="rounded-lg bg-surface px-3 py-1.5 text-xs leading-4 text-soft border border-line backdrop-blur text-center">
           کشیدن روی فضای خالی: کادر جدید — درگ کادر: جابجایی — دستگیره‌ها: تغییر اندازه — Alt یا کلیک میانی: پن — چرخ ماوس: زوم — Delete: حذف کادر
         </span>
       </div>
@@ -620,9 +627,9 @@ function BoxCanvasImpl({ image, boxes, selectedId, onSelect, onChange }: BoxCanv
       {!image && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 text-center">
           <div className="rounded-2xl metallic-gradient p-[1.5px]">
-            <div className="rounded-2xl bg-slate-950/80 px-8 py-6">
+            <div className="rounded-2xl bg-surface px-8 py-6">
               <p className="text-sm font-bold metallic-text">تصویری بارگذاری نشده است</p>
-              <p className="mt-1.5 text-xs text-slate-400">
+              <p className="mt-1.5 text-xs text-soft">
                 یک شیت تصویر آپلود کنید یا از دکمه «شیت نمونه» استفاده کنید
               </p>
             </div>

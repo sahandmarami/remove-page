@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
+
+/** static-export basePath (e.g. "/spriteforge" on GitHub Pages) — empty in dev */
+const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata: Metadata = {
   title: "اسپرایت‌فورج | SpriteForge — برش‌زن هوشمند شیت و استخراج فریم",
@@ -16,14 +20,19 @@ export const metadata: Metadata = {
     "کروماکی",
   ],
   icons: {
-    icon: "/logo.svg",
+    icon: `${BP}/logo.svg`,
   },
+  applicationName: "SpriteForge",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c0d16",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0c0d16" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f6fc" },
+  ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -32,18 +41,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl" className="dark" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased bg-background text-foreground flex flex-col">
-        {children}
-        <Toaster position="bottom-center" dir="rtl" expand={false} richColors closeButton />
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+          {children}
+          <Toaster position="bottom-center" dir="rtl" expand={false} richColors closeButton />
+        </ThemeProvider>
       </body>
     </html>
   );

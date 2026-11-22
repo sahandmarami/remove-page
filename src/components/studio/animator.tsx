@@ -221,13 +221,13 @@ export function Animator() {
     return (
       <div className="hero-dots flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-3xl panel-glass p-10 text-center">
         <div className="relative">
-          <div className="pointer-events-none absolute -top-16 right-1/2 h-40 w-40 translate-x-1/2 rounded-full bg-fuchsia-500/20 blur-2xl" />
+          <div className="pointer-events-none absolute -top-16 right-1/2 h-40 w-40 translate-x-1/2 rounded-full bg-fuchsia-tint blur-2xl" />
           <div className="hero-icon-glow relative mx-auto grid h-20 w-20 place-items-center rounded-2xl metallic-gradient">
             <Clapperboard className="h-9 w-9 text-white" />
           </div>
         </div>
         <p className="text-lg font-black metallic-text">هنوز فریمی وجود ندارد</p>
-        <p className="max-w-md text-sm leading-6 text-slate-400">
+        <p className="max-w-md text-sm leading-6 text-soft">
           از تب «برش‌زن شیت تصویر» کادرها را برش بزنید یا از تب «استودیو ویدیو و گیف» فریم‌های
           کروماکی‌شده استخراج کنید تا فلپ‌بوک، اسپرایت‌شیت و خروجی WebP شفاف فعال شود.
         </p>
@@ -239,7 +239,7 @@ export function Animator() {
     <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
       {/* ---------- flipbook + frames ---------- */}
       <div className="flex flex-col gap-3">
-        <div className={cn("overflow-hidden rounded-xl border border-white/10", BG_OPTIONS.find((b) => b.id === bgMode)?.className)}>
+        <div className={cn("overflow-hidden rounded-xl border border-line", BG_OPTIONS.find((b) => b.id === bgMode)?.className)}>
           <canvas
             ref={flipbookRef}
             width={720}
@@ -254,7 +254,7 @@ export function Animator() {
             size="icon"
             variant="secondary"
             onClick={() => step(-1)}
-            className="border border-white/10 bg-white/5"
+            className="border border-line bg-chip"
             aria-label="فریم قبلی"
           >
             <SkipBack className="h-4 w-4" />
@@ -273,13 +273,13 @@ export function Animator() {
             size="icon"
             variant="secondary"
             onClick={() => step(1)}
-            className="border border-white/10 bg-white/5"
+            className="border border-line bg-chip"
             aria-label="فریم بعدی"
           >
             <SkipForward className="h-4 w-4" />
           </Button>
           <div className="flex min-w-[180px] flex-1 items-center gap-2">
-            <span className="shrink-0 text-xs text-slate-400">سرعت</span>
+            <span className="shrink-0 text-xs text-soft">سرعت</span>
             <Slider
               value={[fps]}
               min={1}
@@ -288,7 +288,7 @@ export function Animator() {
               onValueChange={(v) => setFps(v[0])}
               className="flex-1"
             />
-            <span className="w-14 shrink-0 text-center font-mono text-xs text-cyan-300" dir="ltr">
+            <span className="w-14 shrink-0 text-center font-mono text-xs text-cyan-ink" dir="ltr">
               {fps} FPS
             </span>
           </div>
@@ -304,13 +304,13 @@ export function Animator() {
                   "h-7 w-7 rounded-md border transition-all",
                   b.className,
                   bgMode === b.id
-                    ? "border-cyan-400 neon-ring scale-110"
-                    : "border-white/15 hover:border-violet-400/50"
+                    ? "border-cyan-line-strong neon-ring scale-110"
+                    : "border-line-strong hover:border-violet-line-strong"
                 )}
               />
             ))}
           </div>
-          <span className="font-mono text-xs text-slate-400" dir="ltr">
+          <span className="font-mono text-xs text-soft" dir="ltr">
             {displayIdx + 1} / {frames.length}
           </span>
         </div>
@@ -318,8 +318,8 @@ export function Animator() {
         {/* frames strip */}
         <div className="rounded-2xl panel-glass p-3">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-              <PencilLine className="h-4 w-4 text-violet-400" />
+            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <PencilLine className="h-4 w-4 text-violet-ink" />
               فریم‌ها ({frames.length})
             </h3>
             <Button
@@ -330,7 +330,7 @@ export function Animator() {
                 clearAll();
                 toast.info("همه فریم‌ها پاک شدند");
               }}
-              className="text-slate-400 hover:text-rose-300"
+              className="text-soft hover:text-rose-ink"
             >
               <Trash2 className="h-4 w-4" />
               پاک‌کردن همه
@@ -347,8 +347,8 @@ export function Animator() {
                 className={cn(
                   "group relative cursor-pointer rounded-lg border p-1.5 transition-all",
                   selectedFrameId === f.id
-                    ? "border-cyan-400/70 bg-cyan-400/10 neon-ring"
-                    : "border-white/10 bg-white/5 hover:border-violet-400/40"
+                    ? "border-cyan-line-strong bg-cyan-tint neon-ring"
+                    : "border-line bg-chip hover:border-violet-line-strong"
                 )}
               >
                 <img
@@ -356,10 +356,10 @@ export function Animator() {
                   alt={`فریم ${f.name}`}
                   className="mx-auto h-16 w-full rounded object-contain checker-dark"
                 />
-                <p className="mt-1 truncate text-center font-mono text-[10px] text-slate-300" dir="ltr" title={f.name}>
+                <p className="mt-1 truncate text-center font-mono text-xs text-soft" dir="ltr" title={f.name}>
                   {f.name}
                 </p>
-                <p className="text-center font-mono text-[9px] text-slate-500" dir="ltr">
+                <p className="text-center font-mono text-xs text-faint" dir="ltr">
                   {f.w}×{f.h}
                 </p>
                 <div className="absolute inset-x-1 top-1 flex justify-between opacity-0 transition-opacity group-hover:opacity-100">
@@ -370,7 +370,7 @@ export function Animator() {
                       e.stopPropagation();
                       void downloadOne(f.id);
                     }}
-                    className="rounded bg-slate-950/85 p-1 text-cyan-300 hover:text-cyan-200"
+                    className="rounded bg-surface p-1 text-cyan-ink hover:text-cyan-ink"
                   >
                     <Download className="h-3.5 w-3.5" />
                   </button>
@@ -381,12 +381,12 @@ export function Animator() {
                       e.stopPropagation();
                       removeFrame(f.id);
                     }}
-                    className="rounded bg-slate-950/85 p-1 text-rose-400 hover:text-rose-300"
+                    className="rounded bg-surface p-1 text-rose-ink hover:text-rose-ink"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <span className="absolute -top-1.5 right-1 rounded bg-violet-600 px-1 font-mono text-[9px] text-white" dir="ltr">
+                <span className="absolute -top-1.5 right-1 rounded bg-violet-600 px-1 font-mono text-xs text-white" dir="ltr">
                   {i + 1}
                 </span>
               </div>
@@ -399,24 +399,24 @@ export function Animator() {
       <div className="flex flex-col gap-3">
         {/* sprite sheet */}
         <section className="rounded-2xl panel-glass p-4 space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-            <Grid3X3 className="h-4 w-4 text-violet-400" />
+          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <Grid3X3 className="h-4 w-4 text-violet-ink" />
             سازنده اسپرایت‌شیت مشبک
           </h3>
-          <div className="rounded-lg border border-white/10 checker-dark p-2">
+          <div className="rounded-lg border border-line checker-dark p-2">
             <canvas ref={sheetRef} className="mx-auto block h-auto max-h-[200px] w-auto max-w-full" />
           </div>
           <div>
-            <div className="flex justify-between text-xs text-slate-400">
+            <div className="flex justify-between text-xs text-soft">
               <span>تعداد ستون‌ها</span>
-              <span className="text-cyan-300">{columns}</span>
+              <span className="text-cyan-ink">{columns}</span>
             </div>
             <Slider value={[columns]} min={1} max={16} step={1} onValueChange={(v) => setColumns(v[0])} className="mt-1.5" />
           </div>
           <div>
-            <div className="flex justify-between text-xs text-slate-400">
+            <div className="flex justify-between text-xs text-soft">
               <span>فاصله بین سلول‌ها</span>
-              <span className="text-cyan-300">{spacing}px</span>
+              <span className="text-cyan-ink">{spacing}px</span>
             </div>
             <Slider value={[spacing]} min={0} max={24} step={1} onValueChange={(v) => setSpacing(v[0])} className="mt-1.5" />
           </div>
@@ -436,8 +436,8 @@ export function Animator() {
                 className={cn(
                   "rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
                   sheetBg === id
-                    ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-300"
-                    : "border-white/10 bg-white/5 text-slate-300 hover:border-violet-400/40"
+                    ? "border-cyan-line-strong bg-cyan-tint text-cyan-ink"
+                    : "border-line bg-chip text-soft hover:border-violet-line-strong"
                 )}
               >
                 {label}
@@ -445,7 +445,7 @@ export function Animator() {
             ))}
           </div>
           {sheetMeta && (
-            <p className="font-mono text-[10px] text-slate-500" dir="ltr">
+            <p className="font-mono text-xs text-faint" dir="ltr">
               {sheetMeta.sheet.columns}×{sheetMeta.sheet.rows} — {sheetMeta.sheet.width}×{sheetMeta.sheet.height}
             </p>
           )}
@@ -454,7 +454,7 @@ export function Animator() {
               type="button"
               variant="secondary"
               onClick={() => void downloadSheet("image/png")}
-              className="border border-white/10 bg-white/5"
+              className="border border-line bg-chip"
             >
               <Download className="h-4 w-4" />
               PNG
@@ -463,7 +463,7 @@ export function Animator() {
               type="button"
               variant="secondary"
               onClick={() => void downloadSheet("image/webp")}
-              className="border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:border-cyan-400/60"
+              className="border border-cyan-line bg-cyan-tint text-cyan-ink hover:border-cyan-line-strong"
             >
               <Download className="h-4 w-4" />
               WebP
@@ -472,7 +472,7 @@ export function Animator() {
               type="button"
               variant="secondary"
               onClick={() => void copyMeta()}
-              className="col-span-2 border border-violet-400/30 bg-violet-500/10 text-violet-200 hover:border-violet-400/60"
+              className="col-span-2 border border-violet-line bg-violet-tint text-violet-ink hover:border-violet-line-strong"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               کپی متادیتا JSON (Unity / Godot)
@@ -486,7 +486,7 @@ export function Animator() {
                 downloadBlob(blob, "spritesheet.json");
                 toast.success("فایل متادیتا دانلود شد");
               }}
-              className="col-span-2 border border-white/10 bg-white/5"
+              className="col-span-2 border border-line bg-chip"
             >
               <FileJson className="h-4 w-4" />
               دانلود فایل متادیتا JSON
@@ -496,19 +496,19 @@ export function Animator() {
 
         {/* export */}
         <section className="rounded-2xl panel-glass p-4 space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-            <Package className="h-4 w-4 text-cyan-400" />
+          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <Package className="h-4 w-4 text-cyan-ink" />
             خروجی و دانلود
           </h3>
           <div>
-            <div className="flex justify-between text-xs text-slate-400">
+            <div className="flex justify-between text-xs text-soft">
               <span>کیفیت WebP</span>
-              <span className="text-cyan-300">{Math.round(quality * 100)}٪</span>
+              <span className="text-cyan-ink">{Math.round(quality * 100)}٪</span>
             </div>
             <Slider value={[quality]} min={0.5} max={1} step={0.02} onValueChange={(v) => setQuality(v[0])} className="mt-1.5" />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="rename-pattern" className="flex items-center gap-1.5 text-xs text-slate-400">
+            <label htmlFor="rename-pattern" className="flex items-center gap-1.5 text-xs text-soft">
               <FileJson className="h-3.5 w-3.5" />
               الگوی تغییر نام دسته‌ای
             </label>
@@ -517,10 +517,10 @@ export function Animator() {
               value={pattern}
               onChange={(e) => setPattern(e.target.value)}
               dir="ltr"
-              className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 font-mono text-sm text-slate-200 outline-none focus:border-cyan-400/50"
+              className="w-full rounded-lg border border-line bg-surface px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong"
             />
             <div className="flex items-center justify-between">
-              <p className="font-mono text-[10px] text-slate-500" dir="ltr">
+              <p className="font-mono text-xs text-faint" dir="ltr">
                 {previewName}.webp
               </p>
               <Button
@@ -531,7 +531,7 @@ export function Animator() {
                   renameAll(pattern);
                   toast.success("نام همه فریم‌ها بازنویسی شد");
                 }}
-                className="text-xs text-cyan-300 hover:text-cyan-200"
+                className="text-xs text-cyan-ink hover:text-cyan-ink"
               >
                 <Check className="h-3.5 w-3.5" />
                 اعمال نام‌ها
@@ -547,7 +547,7 @@ export function Animator() {
             {zipping ? <Download className="h-4 w-4 animate-bounce" /> : <Package className="h-4 w-4" />}
             دانلود ZIP همه فریم‌ها ({frames.length})
           </Button>
-          <p className="text-[11px] leading-4 text-slate-500">
+          <p className="text-xs leading-4 text-faint">
             همه فایل‌ها با آلفای شفاف به WebP تبدیل و در مرورگر شما زیپ می‌شوند — هیچ فایلی به سرور ارسال نمی‌شود.
           </p>
         </section>

@@ -1,0 +1,7 @@
+{
+  "name": "pixcut-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PixCut Studio — smart image cutter, background remover, transparent frame extractor — 100% client-side"
+}

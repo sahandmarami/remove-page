@@ -505,7 +505,7 @@ export function VideoStudio() {
             variant="secondary"
             disabled={busySource}
             onClick={() => void testVideo()}
-            className="border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:border-emerald-400/60"
+            className="border border-emerald-400/30 bg-emerald-400/10 text-emerald-ink hover:border-emerald-400/60"
           >
             {busySource ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -519,7 +519,7 @@ export function VideoStudio() {
             variant="secondary"
             disabled={busySource}
             onClick={() => void testGif()}
-            className="border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:border-cyan-400/60"
+            className="border border-cyan-line bg-cyan-tint text-cyan-ink hover:border-cyan-line-strong"
           >
             <Sparkles className="h-4 w-4" />
             گیف متحرک تستی
@@ -529,7 +529,7 @@ export function VideoStudio() {
             variant="ghost"
             size="sm"
             onClick={resetSource}
-            className="mr-auto text-slate-400 hover:text-rose-300"
+            className="mr-auto text-soft hover:text-rose-ink"
           >
             بستن منبع
           </Button>
@@ -537,7 +537,7 @@ export function VideoStudio() {
         )}
 
         {sourceReady ? (
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 checker-dark">
+        <div className="relative overflow-hidden rounded-2xl border border-line checker-dark">
           <canvas
             ref={previewCanvasRef}
             width={720}
@@ -550,35 +550,35 @@ export function VideoStudio() {
           />
 
           {mode === "gif" && gifFrames.length > 0 && (
-            <div className="absolute right-3 top-3 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] text-cyan-300 border border-white/10 backdrop-blur">
+            <div className="absolute right-3 top-3 rounded-md bg-overlay px-2 py-1 text-xs text-cyan-ink border border-line backdrop-blur">
               فریم {gifIdx + 1} / {gifFrames.length}
             </div>
           )}
           {mode === "video" && videoMeta && (
-            <div className="absolute right-3 top-3 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] text-cyan-300 border border-white/10 backdrop-blur">
+            <div className="absolute right-3 top-3 rounded-md bg-overlay px-2 py-1 text-xs text-cyan-ink border border-line backdrop-blur">
               {videoMeta.width}×{videoMeta.height} — {videoMeta.duration.toFixed(1)}s
             </div>
           )}
         </div>
         ) : (
         <div
-          className="hero-dots relative overflow-hidden rounded-3xl border-2 border-dashed border-cyan-400/25 bg-slate-950/40 p-8 text-center sm:p-10"
+          className="hero-dots relative overflow-hidden rounded-3xl border-2 border-dashed border-cyan-line bg-surface p-8 text-center sm:p-10"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
             onFiles(e.dataTransfer.files);
           }}
         >
-          <div className="pointer-events-none absolute -top-24 right-1/2 h-64 w-64 translate-x-1/2 rounded-full bg-cyan-400/15 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-56 rounded-full bg-violet-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -top-24 right-1/2 h-64 w-64 translate-x-1/2 rounded-full bg-cyan-tint blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-56 rounded-full bg-violet-tint blur-3xl" />
           <div className="relative">
-            <div className="hero-icon-glow mx-auto grid h-20 w-20 place-items-center rounded-2xl border border-cyan-400/40 bg-cyan-400/15">
-              <FileVideo className="h-9 w-9 text-cyan-300" />
+            <div className="hero-icon-glow mx-auto grid h-20 w-20 place-items-center rounded-2xl border border-cyan-line-strong bg-cyan-tint">
+              <FileVideo className="h-9 w-9 text-cyan-ink" />
             </div>
             <h2 className="mt-5 text-xl font-black metallic-text sm:text-2xl">
               ویدیو یا گیف را به فریم‌های شفاف تبدیل کنید
             </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-soft">
               فایل را اینجا رها کنید یا بدون آپلود، با یک کلیک منبع تستی بسازید — کروماکی زنده
               روی پیش‌نمایش اعمال می‌شود و خروجی ZIP شفاف دانلود می‌شود.
             </p>
@@ -591,15 +591,15 @@ export function VideoStudio() {
                 onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
                 className="group cursor-pointer rounded-2xl metallic-gradient p-[1.5px] transition-transform hover:scale-[1.02]"
               >
-                <div className="flex h-full flex-col gap-1.5 rounded-[calc(1rem-1px)] bg-slate-950/85 p-4">
-                  <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-violet-400/40 bg-violet-500/15 text-violet-300">
+                <div className="flex h-full flex-col gap-1.5 rounded-[calc(1rem-1px)] bg-surface p-4">
+                  <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-violet-line-strong bg-violet-tint text-violet-ink">
                     <Upload className="h-5 w-5" />
                   </span>
                   <span className="text-sm font-black text-white">آپلود ویدیو / گیف</span>
-                  <span className="text-[11px] leading-4 text-slate-400">
+                  <span className="text-xs leading-4 text-soft">
                     کشیدن و رها کردن هم کار می‌کند
                   </span>
-                  <span className="mt-auto pt-1 font-mono text-[10px] text-slate-500" dir="ltr">
+                  <span className="mt-auto pt-1 font-mono text-xs text-faint" dir="ltr">
                     MP4 · WebM · MOV · GIF
                   </span>
                 </div>
@@ -612,11 +612,11 @@ export function VideoStudio() {
                 onKeyDown={(e) => e.key === "Enter" && void testVideo()}
                 className="cursor-pointer rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 transition-all hover:scale-[1.02] hover:border-emerald-400/60"
               >
-                <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-emerald-400/40 bg-emerald-400/15 text-emerald-300">
+                <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-emerald-400/40 bg-emerald-400/15 text-emerald-ink">
                   <TestTube2 className="h-5 w-5" />
                 </span>
-                <span className="block text-sm font-black text-emerald-100">ویدیوی تستی پرده سبز</span>
-                <span className="mt-1 block text-[11px] leading-4 text-slate-400">
+                <span className="block text-sm font-black text-emerald-ink">ویدیوی تستی پرده سبز</span>
+                <span className="mt-1 block text-xs leading-4 text-soft">
                   یک کلیک — بدون آپلود فایل
                 </span>
               </div>
@@ -626,13 +626,13 @@ export function VideoStudio() {
                 tabIndex={0}
                 onClick={() => void testGif()}
                 onKeyDown={(e) => e.key === "Enter" && void testGif()}
-                className="cursor-pointer rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4 transition-all hover:scale-[1.02] hover:border-cyan-400/60"
+                className="cursor-pointer rounded-2xl border border-cyan-line bg-cyan-tint p-4 transition-all hover:scale-[1.02] hover:border-cyan-line-strong"
               >
-                <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-cyan-400/40 bg-cyan-400/15 text-cyan-300">
+                <span className="mb-1 grid h-10 w-10 place-items-center rounded-xl border border-cyan-line-strong bg-cyan-tint text-cyan-ink">
                   <Sparkles className="h-5 w-5" />
                 </span>
-                <span className="block text-sm font-black text-cyan-100">گیف متحرک تستی</span>
-                <span className="mt-1 block text-[11px] leading-4 text-slate-400">
+                <span className="block text-sm font-black text-cyan-ink">گیف متحرک تستی</span>
+                <span className="mt-1 block text-xs leading-4 text-soft">
                   یک کلیک — بدون آپلود فایل
                 </span>
               </div>
@@ -648,7 +648,7 @@ export function VideoStudio() {
               type="button"
               size="icon"
               variant="secondary"
-              className="border border-white/10 bg-white/5"
+              className="border border-line bg-chip"
               onClick={() => setVideoPlaying((p) => !p)}
               aria-label={videoPlaying ? "توقف" : "پخش"}
             >
@@ -667,7 +667,7 @@ export function VideoStudio() {
               }}
               aria-label="جابجایی زمانی"
             />
-            <span className="text-xs text-slate-400" dir="ltr">
+            <span className="text-xs text-soft" dir="ltr">
               {srcName}
             </span>
           </div>
@@ -678,7 +678,7 @@ export function VideoStudio() {
               type="button"
               size="icon"
               variant="secondary"
-              className="border border-white/10 bg-white/5"
+              className="border border-line bg-chip"
               onClick={() => setGifPlaying((p) => !p)}
               aria-label={gifPlaying ? "توقف" : "پخش"}
             >
@@ -695,7 +695,7 @@ export function VideoStudio() {
               }}
               className="flex-1"
             />
-            <span className="text-xs text-slate-400" dir="ltr">
+            <span className="text-xs text-soft" dir="ltr">
               {srcName}
             </span>
           </div>
@@ -706,8 +706,8 @@ export function VideoStudio() {
       <div className="flex flex-col gap-3">
         {/* frame count */}
         <section className="rounded-xl panel-glass p-4 space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-            <Film className="h-4 w-4 text-violet-400" />
+          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <Film className="h-4 w-4 text-violet-ink" />
             تعداد فریم‌های استخراج
           </h3>
           <div className="grid grid-cols-3 gap-1.5">
@@ -722,8 +722,8 @@ export function VideoStudio() {
                 className={cn(
                   "rounded-lg border px-2 py-2 text-sm font-bold transition-colors",
                   count === c && !gifAll
-                    ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-300 neon-ring"
-                    : "border-white/10 bg-white/5 text-slate-300 hover:border-violet-400/40"
+                    ? "border-cyan-line-strong bg-cyan-tint text-cyan-ink neon-ring"
+                    : "border-line bg-chip text-soft hover:border-violet-line-strong"
                 )}
               >
                 {c} فریم
@@ -731,8 +731,8 @@ export function VideoStudio() {
             ))}
           </div>
           {mode === "gif" && (
-            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-              <Label className="text-xs text-slate-300">همه فریم‌های اصلی گیف ({gifFrames.length})</Label>
+            <div className="flex items-center justify-between rounded-lg border border-line bg-chip px-3 py-2">
+              <Label className="text-xs text-soft">همه فریم‌های اصلی گیف ({gifFrames.length})</Label>
               <Switch
                 checked={gifAll}
                 onCheckedChange={(v) => {
@@ -744,7 +744,7 @@ export function VideoStudio() {
             </div>
           )}
           {mode === "video" && (
-            <p className="text-[11px] leading-4 text-slate-500">
+            <p className="text-xs leading-4 text-faint">
               نمونه‌برداری زمانی متوازن روی طول ویدیو اعمال می‌شود و به‌صورت غیرمسدودکننده با نوار پیشرفت اجرا خواهد شد.
             </p>
           )}
@@ -753,8 +753,8 @@ export function VideoStudio() {
         {/* chroma key */}
         <section className="rounded-xl panel-glass p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-              <Droplets className="h-4 w-4 text-emerald-400" />
+            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <Droplets className="h-4 w-4 text-emerald-ink" />
               کروماکی زنده
             </h3>
             <Switch checked={chromaEnabled} onCheckedChange={setChromaEnabled} aria-label="کروماکی" />
@@ -763,7 +763,7 @@ export function VideoStudio() {
           <div className={cn("space-y-3", !chromaEnabled && "opacity-45 pointer-events-none")}>
             <div className="flex items-center gap-2">
               <label
-                className="relative h-9 w-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/20"
+                className="relative h-9 w-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-line-strong"
                 style={{ backgroundColor: chromaHex }}
                 aria-label="انتخاب رنگ کلید"
               >
@@ -782,8 +782,8 @@ export function VideoStudio() {
                 className={cn(
                   "flex-1 border",
                   eyedropper
-                    ? "border-cyan-400/60 bg-cyan-400/15 text-cyan-300 neon-ring"
-                    : "border-white/10 bg-white/5 text-slate-300"
+                    ? "border-cyan-line-strong bg-cyan-tint text-cyan-ink neon-ring"
+                    : "border-line bg-chip text-soft"
                 )}
               >
                 {eyedropper ? <Eye className="h-4 w-4" /> : <Pipette className="h-4 w-4" />}
@@ -800,31 +800,31 @@ export function VideoStudio() {
                   key={p.hex}
                   type="button"
                   onClick={() => setChromaHex(p.hex)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] text-slate-300 hover:border-violet-400/40"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-chip px-2 py-1.5 text-xs text-soft hover:border-violet-line-strong"
                 >
-                  <span className="h-3 w-3 rounded-full border border-white/30" style={{ backgroundColor: p.hex }} />
+                  <span className="h-3 w-3 rounded-full border border-line-strong" style={{ backgroundColor: p.hex }} />
                   {p.label}
                 </button>
               ))}
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-400">
+              <div className="flex justify-between text-xs text-soft">
                 <span>حساسیت کلید</span>
-                <span className="text-cyan-300">{Math.round(similarity * 100)}٪</span>
+                <span className="text-cyan-ink">{Math.round(similarity * 100)}٪</span>
               </div>
               <Slider value={[similarity]} min={0.02} max={0.9} step={0.01} onValueChange={(v) => setSimilarity(v[0])} className="mt-1.5" />
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-400">
+              <div className="flex justify-between text-xs text-soft">
                 <span>نرمی لبه</span>
-                <span className="text-cyan-300">{Math.round(smoothness * 100)}٪</span>
+                <span className="text-cyan-ink">{Math.round(smoothness * 100)}٪</span>
               </div>
               <Slider value={[smoothness]} min={0.01} max={0.6} step={0.01} onValueChange={(v) => setSmoothness(v[0])} className="mt-1.5" />
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-400">
+              <div className="flex justify-between text-xs text-soft">
                 <span>خنثی‌سازی بازتاب پرده (Despill)</span>
-                <span className="text-cyan-300">{Math.round(despill * 100)}٪</span>
+                <span className="text-cyan-ink">{Math.round(despill * 100)}٪</span>
               </div>
               <Slider value={[despill]} min={0} max={1} step={0.05} onValueChange={(v) => setDespill(v[0])} className="mt-1.5" />
             </div>
@@ -834,10 +834,11 @@ export function VideoStudio() {
       </div>
 
       {/* ---------- sticky bottom action bar: extract + download ---------- */}
-      <div className="sticky bottom-3 z-30">
-        <div className="float-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-white/10 panel-glass px-4 py-3">
+      {sourceReady && (
+      <div className="sticky-safe">
+        <div className="float-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line panel-glass px-3 py-2.5 sm:px-4 sm:py-3">
           <div className="flex items-center gap-2">
-            <Label htmlFor="vid-prefix" className="shrink-0 text-xs text-slate-400">
+            <Label htmlFor="vid-prefix" className="shrink-0 text-xs text-soft">
               پیشوند
             </Label>
             <input
@@ -846,23 +847,23 @@ export function VideoStudio() {
               onChange={(e) => setPrefix(e.target.value)}
               dir="ltr"
               placeholder="vid"
-              className="w-24 rounded-lg border border-white/10 bg-slate-950/60 px-2.5 py-1.5 font-mono text-sm text-slate-200 outline-none focus:border-cyan-400/50"
+              className="h-9 w-20 rounded-lg border border-line bg-surface px-2.5 py-1.5 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong sm:h-auto sm:w-24"
             />
           </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 hover:border-cyan-400/40">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-chip px-3 py-1.5 text-xs text-soft hover:border-cyan-line-strong">
             <Switch checked={autoZip} onCheckedChange={setAutoZip} aria-label="دانلود خودکار ZIP" />
-            <Package className="h-3.5 w-3.5 text-cyan-300" />
+            <Package className="h-3.5 w-3.5 text-cyan-ink" />
             دانلود خودکار ZIP
           </label>
           {progress && (
             <div className="flex min-w-[170px] flex-1 items-center gap-2">
               <Progress value={(progress.current / progress.total) * 100} className="h-2 flex-1" />
-              <span className="font-mono text-[11px] text-cyan-300" dir="ltr">
+              <span className="font-mono text-xs text-cyan-ink" dir="ltr">
                 {progress.current}/{progress.total}
               </span>
             </div>
           )}
-          <div className="mr-auto flex items-center gap-2">
+          <div className="mr-auto flex flex-wrap items-center justify-end gap-2">
             {progress && (
               <Button
                 type="button"
@@ -870,7 +871,7 @@ export function VideoStudio() {
                 onClick={() => {
                   cancelRef.current = true;
                 }}
-                className="border border-rose-400/30 bg-rose-400/10 text-rose-200 hover:border-rose-400/60"
+                className="border border-rose-line bg-rose-tint text-rose-ink hover:border-rose-line-strong"
               >
                 <CircleStop className="h-4 w-4" />
                 لغو
@@ -893,6 +894,7 @@ export function VideoStudio() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

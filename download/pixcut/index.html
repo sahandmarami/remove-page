@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>پیکس‌کات استودیو | برش هوشمند تصویر و فریم‌های شفاف</title>
+<meta name="description" content="برش هوشمند اشیاء، حذف پس‌زمینه، استخراج فریم شفاف از ویدیو و GIF با کلید رنگی، فلیپ‌بوک و اسپرایت‌شیت — همه‌چیز کاملاً داخل مرورگر شما.">
+<meta name="theme-color" content="#070a13">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%237c3aed'/%3E%3Cg fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='7' r='2'/%3E%3Ccircle cx='8' cy='17' r='2'/%3E%3Cpath d='M9.8 8.4 19 18M19 6 9.8 15.6'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ======= inline lucide icon set ======= -->
+<svg id="icon-defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24"><path d="m16 13 5.223 3.482a.5.5 0 0 1 0 .836L16 20.5V13Z"/><path d="M2 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="4" y="4" width="4" height="16" rx="1"/></symbol>
+<symbol id="i-skip-back" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></symbol>
+<symbol id="i-skip-forward" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></symbol>
+<symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></symbol>
+<symbol id="i-wand" viewBox="0 0 24 24"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></symbol>
+<symbol id="i-pipette" viewBox="0 0 24 24"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></symbol>
+<symbol id="i-eraser" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></symbol>
+<symbol id="i-brush" viewBox="0 0 24 24"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5 5.5 5.5 0 0 0 9.5 20H13"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+<symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
+<symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
+<symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+<symbol id="i-move" viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></symbol>
+<symbol id="i-hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="m18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></symbol>
+<symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+<symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 7.5h4M3 12h18M3 16.5h4M17 7.5h4M17 16.5h4"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.7 4.4L18.7 7"/><path d="m7.5 4.27 9 5.15"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+</defs>
+</svg>
+
+<!-- ======= header ======= -->
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-logo"><svg class="ic"><use href="#i-scissors"/></svg></span>
+    <div class="brand-text">
+      <h1>پیکس‌کات استودیو</h1>
+      <p>برش هوشمند، پس‌زمینه‌زدا و اسپرایت‌ساز — داخل مرورگر</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a class="icon-btn" href="https://github.com/sahandmarami/pixcut-studio" target="_blank" rel="noopener" title="سورس در گیت‌هاب"><svg class="ic"><use href="#i-github"/></svg></a>
+    <button id="btnTheme" class="icon-btn" type="button" title="تغییر تم روشن/تاریک"><svg class="ic"><use href="#i-sun"/></svg></button>
+  </div>
+</header>
+
+<!-- ======= desktop tabbar ======= -->
+<nav class="tabbar" aria-label="بخش‌های استودیو">
+  <button class="tab-btn active" data-tab="cut" type="button"><svg class="ic"><use href="#i-scissors"/></svg><span>برش و پس‌زمینه</span></button>
+  <button class="tab-btn" data-tab="frames" type="button"><svg class="ic"><use href="#i-video"/></svg><span>فریم‌های شفاف</span></button>
+  <button class="tab-btn" data-tab="anim" type="button"><svg class="ic"><use href="#i-play"/></svg><span>انیمیشن و خروجی</span></button>
+</nav>
+
+<!-- ======= mobile bottom nav ======= -->
+<nav class="mobile-nav" aria-label="بخش‌های استودیو">
+  <button class="tab-btn active" data-tab="cut" type="button"><svg class="ic"><use href="#i-scissors"/></svg><span>برش و پس‌زمینه</span></button>
+  <button class="tab-btn" data-tab="frames" type="button"><svg class="ic"><use href="#i-video"/></svg><span>فریم‌های شفاف</span></button>
+  <button class="tab-btn" data-tab="anim" type="button"><svg class="ic"><use href="#i-play"/></svg><span>انیمیشن و خروجی</span></button>
+</nav>
+
+<main>
+<!-- ================= MODULE 1 : CUT ================= -->
+<section id="page-cut" class="page active" aria-label="برش و پس‌زمینه">
+  <div class="steps" id="cutSteps">
+    <div class="step active"><span class="step-n">۱</span><span class="step-t">بارگذاری تصویر</span></div>
+    <div class="step-line"></div>
+    <div class="step"><span class="step-n">۲</span><span class="step-t">برش و حذف پس‌زمینه</span></div>
+    <div class="step-line"></div>
+    <div class="step"><span class="step-n">۳</span><span class="step-t">دانلود خروجی</span></div>
+  </div>
+
+  <div id="cutEmpty" class="dropzone" tabindex="0" role="button" aria-label="بارگذاری تصویر">
+    <svg class="ic dz-icon"><use href="#i-upload"/></svg>
+    <h2>تصویر را اینجا رها کنید یا کلیک کنید</h2>
+    <p class="dz-sub">PNG، JPG، WebP — همه‌ی پردازش‌ها داخل مرورگر شما انجام می‌شود</p>
+    <button class="btn btn-ghost btn-sm" id="demoCut" type="button"><svg class="ic"><use href="#i-sparkles"/></svg> امتحان با تصویر نمونه</button>
+    <input type="file" id="fileCut" accept="image/*" hidden>
+  </div>
+
+  <div id="cutWork" class="hidden">
+    <div class="work-grid">
+      <div class="card stage-card">
+        <div class="card-head">
+          <span class="chip chip-purple"><svg class="ic"><use href="#i-crop"/></svg> بوم برش</span>
+          <div class="toolbar" dir="ltr">
+            <button id="toolSelect" class="seg-btn active" type="button" title="انتخاب / رسم کادر جدید"><svg class="ic"><use href="#i-move"/></svg></button>
+            <button id="toolPan" class="seg-btn" type="button" title="جابجایی نما"><svg class="ic"><use href="#i-hand"/></svg></button>
+            <span class="v-sep"></span>
+            <button id="btnZoomOut" class="icon-btn" type="button" title="کوچک‌نمایی"><svg class="ic"><use href="#i-zoom-out"/></svg></button>
+            <span id="zoomLabel" class="zoom-label">100%</span>
+            <button id="btnZoomIn" class="icon-btn" type="button" title="بزرگ‌نمایی"><svg class="ic"><use href="#i-zoom-in"/></svg></button>
+            <button id="btnZoomFit" class="icon-btn" type="button" title="اندازه در کادر"><svg class="ic"><use href="#i-maximize"/></svg></button>
+            <span class="v-sep"></span>
+            <button id="btnDetect" class="btn btn-primary btn-sm" type="button"><svg class="ic"><use href="#i-sparkles"/></svg> تشخیص خودکار</button>
+            <button id="btnClearBoxes" class="icon-btn" type="button" title="پاک‌کردن کادرها"><svg class="ic"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+        <div id="cutStage" class="stage checker" dir="ltr">
+          <canvas id="cvBase"></canvas>
+          <canvas id="cvOverlay"></canvas>
+        </div>
+        <p class="stage-hint" id="stageHint">با کشیدن روی فضای خالی کادر جدید بکشید؛ کادرها را جابجا کنید؛ از ۸ دستگیره برای تغییر اندازه استفاده کنید.</p>
+      </div>
+
+      <div class="side">
+        <div class="card">
+          <div class="card-head"><span class="chip chip-teal"><svg class="ic"><use href="#i-wand"/></svg> حذف پس‌زمینه</span></div>
+          <div class="panel-body">
+            <label class="slider-row"><span>حساسیت رنگ</span><input type="range" id="rgTol" min="5" max="120" value="32"><b id="rgTolV">32</b></label>
+            <label class="slider-row"><span>نرمی لبه</span><input type="range" id="rgFeather" min="0" max="10" value="2"><b id="rgFeatherV">2</b></label>
+            <label class="slider-row"><span>پالایش لبه</span><input type="range" id="rgDefringe" min="0" max="100" value="40"><b id="rgDefringeV">40</b></label>
+            <label class="slider-row"><span>رفع سرریز رنگ</span><input type="range" id="rgDespill" min="0" max="100" value="0"><b id="rgDespillV">0</b></label>
+            <div class="btn-row">
+              <button id="btnRemoveBg" class="btn btn-primary" type="button"><svg class="ic"><use href="#i-wand"/></svg> حذف پس‌زمینه</button>
+              <button id="btnMaskEdit" class="btn btn-ghost" type="button" disabled><svg class="ic"><use href="#i-eraser"/></svg> ویرایش ماسک</button>
+            </div>
+            <button id="btnRestoreBg" class="link-btn hidden" type="button">بازگشت به تصویر اصلی</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="chip chip-purple"><svg class="ic"><use href="#i-download"/></svg> برش‌ها و دانلود</span>
+            <span class="badge" id="cutCount">0</span>
+          </div>
+          <div class="panel-body">
+            <label class="field"><span>پیشوند نام فایل</span><input id="cutPrefix" type="text" value="cut" dir="ltr" spellcheck="false"></label>
+            <div id="cutResults" class="results"></div>
+            <div class="btn-row">
+              <button id="btnCutAll" class="btn btn-primary" type="button" disabled><svg class="ic"><use href="#i-crop"/></svg> برش همه کادرها</button>
+              <button id="btnZipCut" class="btn btn-ghost" type="button" disabled><svg class="ic"><use href="#i-package"/></svg> ZIP همه</button>
+            </div>
+            <p class="hint">بعد از برش، هر فایل WebP شفاف آماده‌ی دانلود مستقیم است؛ «ZIP همه» همه را یک‌جا با نام‌گذاری مرتب می‌دهد.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MODULE 2 : FRAMES ================= -->
+<section id="page-frames" class="page" aria-label="فریم‌های شفاف">
+  <div id="framesEmpty">
+    <div class="dropzone" id="dropFrames" tabindex="0" role="button" aria-label="بارگذاری ویدیو یا گیف">
+      <svg class="ic dz-icon"><use href="#i-video"/></svg>
+      <h2>ویدیو یا GIF را اینجا رها کنید یا کلیک کنید</h2>
+      <p class="dz-sub">MP4، WebM، MOV و GIF — استخراج فریم و کلید رنگی کاملاً داخل مرورگر</p>
+      <button id="demoGif" class="btn btn-ghost btn-sm" type="button"><svg class="ic"><use href="#i-film"/></svg> امتحان با GIF سبزِ نمونه</button>
+      <input type="file" id="fileFrames" accept="video/*,image/gif" hidden>
+    </div>
+  </div>
+
+  <div id="framesWork" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <span class="chip chip-teal"><svg class="ic"><use href="#i-film"/></svg> منبع</span>
+        <span class="badge" id="srcBadge">GIF</span>
+        <span class="grow"></span>
+        <button id="btnChangeSrc" class="btn btn-ghost btn-sm" type="button"><svg class="ic"><use href="#i-upload"/></svg> تغییر فایل</button>
+      </div>
+      <div class="panel-body extract-row">
+        <div class="field"><span>تعداد فریم</span>
+          <div class="seg" id="countSeg">
+            <button class="seg-btn active" data-count="8" type="button">۸</button>
+            <button class="seg-btn" data-count="12" type="button">۱۲</button>
+            <button class="seg-btn" data-count="16" type="button">۱۶</button>
+            <button class="seg-btn hidden" id="segAll" data-count="all" type="button">همه</button>
+          </div>
+        </div>
+        <button id="btnExtract" class="btn btn-primary" type="button"><svg class="ic"><use href="#i-refresh"/></svg> استخراج فریم‌ها</button>
+      </div>
+      <div id="extractWrap" class="progress-wrap hidden">
+        <div class="progress"><div id="extractBar" class="progress-bar"></div></div>
+        <span id="extractPct" class="progress-text">0%</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="chip chip-purple"><svg class="ic"><use href="#i-image"/></svg> فریم‌های استخراج‌شده</span>
+        <span class="badge" id="frameCount">0</span>
+      </div>
+      <div id="framesStrip" class="frame-strip" dir="ltr"></div>
+    </div>
+
+    <div class="work-grid">
+      <div class="card">
+        <div class="card-head">
+          <span class="chip chip-teal"><svg class="ic"><use href="#i-wand"/></svg> کلید رنگی زنده</span>
+          <span class="grow"></span>
+          <div class="key-presets" dir="ltr">
+            <button class="swatch" data-key="#00b140" type="button" title="سبز کروماکی"><span style="background:#00b140"></span></button>
+            <button class="swatch" data-key="#0047bb" type="button" title="آبی کروماکی"><span style="background:#0047bb"></span></button>
+            <button class="swatch" data-key="#ffffff" type="button" title="سفید"><span style="background:#ffffff"></span></button>
+            <button class="swatch" data-key="#000000" type="button" title="مشکی"><span style="background:#000000"></span></button>
+            <button id="btnPick" class="icon-btn" type="button" title="قطره‌چکان: از روی پیش‌نمایش رنگ بگیرید"><svg class="ic"><use href="#i-pipette"/></svg></button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="key-preview-wrap checker" dir="ltr"><canvas id="keyPreview"></canvas></div>
+          <label class="slider-row"><span>حساسیت کلید</span><input type="range" id="rgSens" min="0" max="120" value="35"><b id="rgSensV">35</b></label>
+          <label class="slider-row"><span>نرمی لبه</span><input type="range" id="rgSoft" min="1" max="80" value="25"><b id="rgSoftV">25</b></label>
+          <label class="slider-row"><span>رفع سرریز رنگ</span><input type="range" id="rgDespill2" min="0" max="100" value="0"><b id="rgDespill2V">0</b></label>
+        </div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <div class="card-head"><span class="chip chip-purple"><svg class="ic"><use href="#i-download"/></svg> خروجی و تست‌ها</span></div>
+          <div class="panel-body btn-col">
+            <button id="btnSendStudio" class="btn btn-primary" type="button"><svg class="ic"><use href="#i-play"/></svg> ارسال به استودیو انیمیشن</button>
+            <button id="btnTestSheet" class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-grid"/></svg> تست اسپرایت‌شیت (Canvas)</button>
+            <button id="btnTestVideo" class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-video"/></svg> تست ویدیوی سبز (MediaRecorder)</button>
+            <button id="btnTestGif" class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-film"/></svg> تست GIF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MODULE 3 : ANIM ================= -->
+<section id="page-anim" class="page" aria-label="انیمیشن و خروجی">
+  <div id="animEmpty" class="empty">
+    <svg class="ic empty-icon"><use href="#i-layers"/></svg>
+    <h2>هنوز فریمی در استودیو نیست</h2>
+    <p>از تب «فریم‌های شفاف» فریم‌ها را بفرستید تا فلیپ‌بوک، اسپرایت‌شیت و خروجی‌ها فعال شوند.</p>
+    <button class="btn btn-ghost" type="button" data-goto="frames"><svg class="ic"><use href="#i-video"/></svg> رفتن به فریم‌های شفاف</button>
+  </div>
+
+  <div id="animWork" class="hidden">
+    <div class="card flip-card">
+      <div class="card-head">
+        <span class="chip chip-teal"><svg class="ic"><use href="#i-play"/></svg> فلیپ‌بوک</span>
+        <span class="badge" id="flipCount">0 فریم</span>
+        <span class="grow"></span>
+        <div class="seg seg-sm" id="bgSeg">
+          <button class="seg-btn active" data-bg="checker" type="button">شطرنجی</button>
+          <button class="seg-btn" data-bg="white" type="button">سفید</button>
+          <button class="seg-btn" data-bg="black" type="button">مشکی</button>
+          <button class="seg-btn" data-bg="green" type="button">سبز</button>
+          <button class="seg-btn" data-bg="custom" type="button">سفارشی</button>
+        </div>
+        <input type="color" id="bgCustom" value="#8b5cf6" class="color-input" title="رنگ سفارشی پس‌زمینه">
+      </div>
+      <div class="panel-body">
+        <div class="flip-stage" id="flipStage" dir="ltr"><canvas id="flipCanvas"></canvas></div>
+        <div class="player-row" dir="ltr">
+          <button id="btnPrev" class="icon-btn" type="button" title="فریم قبلی"><svg class="ic"><use href="#i-skip-back"/></svg></button>
+          <button id="btnPlay" class="btn btn-primary btn-icon" type="button" title="پخش / توقف"><svg class="ic"><use href="#i-play"/></svg></button>
+          <button id="btnNext" class="icon-btn" type="button" title="فریم بعدی"><svg class="ic"><use href="#i-skip-forward"/></svg></button>
+          <span id="flipPos" class="mono">1 / 1</span>
+          <span class="grow"></span>
+          <label class="field field-inline"><span>FPS</span><input type="range" id="rgFps" min="1" max="30" value="12"><b id="fpsVal">12</b></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="work-grid">
+      <div class="card">
+        <div class="card-head"><span class="chip chip-purple"><svg class="ic"><use href="#i-grid"/></svg> اسپرایت‌شیت</span></div>
+        <div class="panel-body">
+          <div class="field-row">
+            <label class="field"><span>ستون‌ها</span><input type="range" id="rgCols" min="1" max="12" value="4"><b id="rgColsV">4</b></label>
+            <label class="field"><span>فاصله (px)</span><input type="range" id="rgGap" min="0" max="24" value="4"><b id="rgGapV">4</b></label>
+            <label class="field"><span>مقیاس</span><input type="range" id="rgScale" min="10" max="100" value="100"><b id="rgScaleV">100</b></label>
+          </div>
+          <div class="sheet-wrap checker" dir="ltr"><canvas id="sheetCanvas"></canvas></div>
+          <div class="btn-row wrap">
+            <button id="btnSheetPng" class="btn btn-ghost btn-sm" type="button"><svg class="ic"><use href="#i-download"/></svg> PNG</button>
+            <button id="btnSheetWebp" class="btn btn-ghost btn-sm" type="button"><svg class="ic"><use href="#i-download"/></svg> WebP</button>
+            <button id="btnSheetJson" class="btn btn-ghost btn-sm" type="button"><svg class="ic"><use href="#i-package"/></svg> متادیتا Unity (JSON)</button>
+            <button id="btnSheetTres" class="btn btn-ghost btn-sm" type="button"><svg class="ic"><use href="#i-package"/></svg> متادیتا Godot (.tres)</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="chip chip-teal"><svg class="ic"><use href="#i-download"/></svg> خروجی فریم‌ها</span></div>
+        <div class="panel-body">
+          <div class="field-row">
+            <label class="field"><span>پیشوند</span><input id="expPrefix" type="text" value="frame" dir="ltr" spellcheck="false"></label>
+            <label class="field"><span>فرمت</span>
+              <select id="expFmt" class="select">
+                <option value="webp">WebP شفاف</option>
+                <option value="png">PNG</option>
+              </select>
+            </label>
+            <label class="field"><span>کیفیت</span><input type="range" id="expQ" min="40" max="100" value="95"><b id="expQV">95</b></label>
+          </div>
+          <div class="btn-col">
+            <button id="btnDlCurrent" class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-download"/></svg> دانلود فریم فعلی</button>
+            <button id="btnDlAll" class="btn btn-primary" type="button"><svg class="ic"><use href="#i-download"/></svg> دانلود همه با نام‌گذاری خودکار</button>
+            <button id="btnDlZip" class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-package"/></svg> دانلود ZIP همه فریم‌ها</button>
+          </div>
+          <p class="hint">نام‌گذاری خودکار: پیشوند + شماره‌ی سه‌رقمی (مثل frame_001.webp)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="app-foot">
+  <p><svg class="ic"><use href="#i-check"/></svg> تمام پردازش‌ها به‌صورت محلی داخل مرورگر شما انجام می‌شود — هیچ فایلی به سروری ارسال نمی‌شود.</p>
+  <p class="foot-made">ساخته‌شده برای برش، شفاف‌سازی و انیمیشن • <a href="https://github.com/sahandmarami/pixcut-studio" target="_blank" rel="noopener">سورس</a></p>
+</footer>
+
+<!-- ======= mask editor modal ======= -->
+<div class="modal-backdrop" id="maskModal" aria-hidden="true">
+  <div class="modal modal-lg" role="dialog" aria-label="ویرایشگر ماسک">
+    <div class="modal-head">
+      <h3><svg class="ic"><use href="#i-eraser"/></svg> ویرایشگر ماسک</h3>
+      <button class="icon-btn" id="btnMaskClose" type="button" title="بستن"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="mask-tools">
+      <div class="seg" id="maskToolSeg" dir="ltr">
+        <button class="seg-btn active" data-mtool="eraser" type="button" title="پاک‌کن"><svg class="ic"><use href="#i-eraser"/></svg></button>
+        <button class="seg-btn" data-mtool="restore" type="button" title="بازیابی"><svg class="ic"><use href="#i-brush"/></svg></button>
+        <button class="seg-btn" data-mtool="wand" type="button" title="چوب جادویی"><svg class="ic"><use href="#i-wand"/></svg></button>
+        <button class="seg-btn" data-mtool="pipette" type="button" title="قطره‌چکان"><svg class="ic"><use href="#i-pipette"/></svg></button>
+      </div>
+      <span class="grow"></span>
+      <label class="field field-inline"><span>برس</span><input type="range" id="rgMaskSize" min="2" max="90" value="20"><b id="rgMaskSizeV">20</b></label>
+      <label class="field field-inline" id="maskTolWrap"><span>تحمل رنگ</span><input type="range" id="rgMaskTol" min="0" max="120" value="35"><b id="rgMaskTolV">35</b></label>
+      <button id="btnMaskUndo" class="icon-btn" type="button" title="برگرداندن"><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button id="btnMaskRedo" class="icon-btn" type="button" title="ازنو"><svg class="ic"><use href="#i-redo"/></svg></button>
+      <span id="maskColor" class="color-chip" title="رنگ مرجع چوب جادویی"></span>
+    </div>
+    <div class="mask-stage checker" dir="ltr"><canvas id="maskCanvas"></canvas></div>
+    <div class="modal-foot">
+      <span class="hint grow">چوب جادویی: روی ناحیه کلیک کنید تا رنگ‌های مشابه شفاف شوند؛ با قطره‌چکان رنگ مرجع را عوض کنید.</span>
+      <button id="btnMaskCancel" class="btn btn-ghost" type="button">انصراف</button>
+      <button id="btnMaskApply" class="btn btn-primary" type="button"><svg class="ic"><use href="#i-check"/></svg> اعمال</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======= test modal ======= -->
+<div class="modal-backdrop" id="testModal" aria-hidden="true">
+  <div class="modal modal-lg" role="dialog" aria-label="پیش‌نمایش تست">
+    <div class="modal-head">
+      <h3 id="testTitle">پیش‌نمایش تست</h3>
+      <button class="icon-btn" id="btnTestClose" type="button" title="بستن"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="testBody" class="modal-body checker"></div>
+    <div class="modal-foot"><span class="hint grow"></span><button id="btnTestDownload" class="btn btn-primary hidden" type="button"><svg class="ic"><use href="#i-download"/></svg> دانلود خروجی تست</button></div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

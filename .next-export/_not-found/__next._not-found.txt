@@ -1,0 +1,4 @@
+1:"$Sreact.fragment"
+2:I[39756,["/spriteforge/_next/static/chunks/039271bf427624dd.js","/spriteforge/_next/static/chunks/33d3f2c0cda968c7.js","/spriteforge/_next/static/chunks/1104eb3445058576.js"],"default"]
+3:I[37457,["/spriteforge/_next/static/chunks/039271bf427624dd.js","/spriteforge/_next/static/chunks/33d3f2c0cda968c7.js","/spriteforge/_next/static/chunks/1104eb3445058576.js"],"default"]
+0:{"buildId":"ZvEf5u7Ylgo-oy0Bi8Iqm","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}

@@ -54,19 +54,19 @@ const FEATURES = [
     icon: ScanSearch,
     title: "تشخیص دوگانه",
     desc: "Vision AI سروری یا بینایی ماشین کاملاً آفلاین",
-    cls: "border-violet-400/30 bg-violet-500/10 text-violet-300",
+    cls: "border-violet-line bg-violet-tint text-violet-ink",
   },
   {
     icon: WandSparkles,
     title: "حذف پس‌زمینه",
     desc: "فیلودفیل با سد گرادیان Sobel و حذف حفره‌ها",
-    cls: "border-cyan-400/30 bg-cyan-400/10 text-cyan-300",
+    cls: "border-cyan-line bg-cyan-tint text-cyan-ink",
   },
   {
     icon: Package,
     title: "برش و دانلود ZIP",
     desc: "همه برش‌ها یک‌جا، WebP شفاف با آلفای کامل",
-    cls: "border-fuchsia-400/30 bg-fuchsia-500/10 text-fuchsia-300",
+    cls: "border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink",
   },
 ] as const;
 
@@ -89,9 +89,9 @@ function SliderRow({
 }) {
   return (
     <div>
-      <div className="flex justify-between text-xs text-slate-400">
+      <div className="flex justify-between text-xs text-soft">
         <span>{label}</span>
-        <span className="text-cyan-300">{display}</span>
+        <span className="text-cyan-ink">{display}</span>
       </div>
       <Slider
         value={[value]}
@@ -248,17 +248,22 @@ export function SheetCutter() {
         toast.success(`${mapped.length} کادر از Vision AI دریافت شد`);
       }
     } catch (err) {
+      // on static hosting (GitHub Pages) there is no /api/detect —
+      // fall back gracefully to the fully offline local vision engine
       const msg =
         err instanceof DOMException && err.name === "AbortError"
           ? "زمان پاسخ سرور به پایان رسید"
           : err instanceof Error
             ? err.message
             : "خطای ناشناخته";
-      toast.error("تشخیص هوش مصنوعی ناموفق بود", { description: msg });
+      toast.info("موتور AI سروری در دسترس نیست", {
+        description: `${msg} — تشخیص محلی روی دستگاه شما اجرا می‌شود`,
+      });
+      localDetect();
     } finally {
       setAiBusy(false);
     }
-  }, [source]);
+  }, [localDetect, source]);
 
   const processCrop = useCallback(
     (box: Box): { original: HTMLCanvasElement; processed: HTMLCanvasElement } => {
@@ -393,7 +398,7 @@ export function SheetCutter() {
           onChange={(e) => void onFiles(e.target.files)}
         />
         <div
-          className="hero-dots relative cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed border-violet-400/25 bg-slate-950/40 p-8 text-center transition-colors hover:border-violet-400/50 sm:p-12"
+          className="hero-dots relative cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed border-violet-line bg-surface p-8 text-center transition-colors hover:border-violet-line-strong sm:p-12"
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -401,8 +406,8 @@ export function SheetCutter() {
             void onFiles(e.dataTransfer.files);
           }}
         >
-          <div className="pointer-events-none absolute -top-28 right-1/2 h-72 w-72 translate-x-1/2 rounded-full bg-violet-500/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/4 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -top-28 right-1/2 h-72 w-72 translate-x-1/2 rounded-full bg-violet-tint blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/4 h-56 w-56 rounded-full bg-cyan-tint blur-3xl" />
           <div className="relative">
             <div className="hero-icon-glow mx-auto grid h-20 w-20 place-items-center rounded-2xl metallic-gradient">
               <ImageUp className="h-9 w-9 text-white" />
@@ -410,7 +415,7 @@ export function SheetCutter() {
             <h2 className="mt-5 text-xl font-black metallic-text sm:text-2xl">
               شیت تصویر را اینجا رها کنید
             </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-soft">
               آیتم‌ها خودکار شناسایی می‌شوند، پس‌زمینه حذف می‌شود و با یک کلیک، همه فایل‌های
               برش‌خورده به‌صورت ZIP شفاف دانلود می‌شوند.
             </p>
@@ -433,13 +438,13 @@ export function SheetCutter() {
                   e.stopPropagation();
                   loadSample();
                 }}
-                className="border border-white/10 bg-white/5 hover:border-cyan-400/40"
+                className="border border-line bg-chip hover:border-cyan-line-strong"
               >
-                <Sparkles className="h-4 w-4 text-cyan-400" />
+                <Sparkles className="h-4 w-4 text-cyan-ink" />
                 شیت نمونه تستی
               </Button>
             </div>
-            <p className="mt-3 text-[11px] text-slate-500" dir="ltr">
+            <p className="mt-3 text-xs text-faint" dir="ltr">
               PNG · JPG · WebP — Drag &amp; Drop
             </p>
 
@@ -447,13 +452,13 @@ export function SheetCutter() {
               {FEATURES.map((f) => (
                 <div
                   key={f.title}
-                  className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-right transition-colors hover:border-white/25"
+                  className="rounded-2xl border border-line bg-surface p-4 text-right transition-colors hover:border-line-strong"
                 >
                   <span className={cn("mb-2.5 grid h-9 w-9 place-items-center rounded-xl border", f.cls)}>
                     <f.icon className="h-4.5 w-4.5" />
                   </span>
-                  <p className="text-sm font-bold text-slate-200">{f.title}</p>
-                  <p className="mt-1 text-[11px] leading-4 text-slate-500">{f.desc}</p>
+                  <p className="text-sm font-bold text-foreground">{f.title}</p>
+                  <p className="mt-1 text-xs leading-4 text-faint">{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -484,7 +489,7 @@ export function SheetCutter() {
               size="sm"
               variant="secondary"
               onClick={() => fileInputRef.current?.click()}
-              className="border border-white/10 bg-white/5"
+              className="border border-line bg-chip"
             >
               <ImageUp className="h-4 w-4" />
               تعویض تصویر
@@ -495,7 +500,7 @@ export function SheetCutter() {
               variant="secondary"
               disabled={aiBusy}
               onClick={() => void aiDetect()}
-              className="border border-violet-400/30 bg-violet-500/10 text-violet-200 hover:border-violet-400/60"
+              className="border border-violet-line bg-violet-tint text-violet-ink hover:border-violet-line-strong"
             >
               {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cpu className="h-4 w-4" />}
               تشخیص AI
@@ -506,7 +511,7 @@ export function SheetCutter() {
               variant="secondary"
               disabled={localBusy}
               onClick={localDetect}
-              className="border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:border-cyan-400/60"
+              className="border border-cyan-line bg-cyan-tint text-cyan-ink hover:border-cyan-line-strong"
             >
               {localBusy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -517,20 +522,20 @@ export function SheetCutter() {
             </Button>
             {bgSwatch && (
               <span
-                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] text-slate-400"
+                className="flex items-center gap-1.5 rounded-lg border border-line bg-chip px-2 py-1.5 text-xs text-soft"
                 title="رنگ پس‌زمینه تشخیص‌شده"
               >
                 <span
-                  className="h-3.5 w-3.5 rounded border border-white/25"
+                  className="h-3.5 w-3.5 rounded border border-line-strong"
                   style={{ backgroundColor: rgbToHex(bgSwatch) }}
                 />
-                <span className="font-mono text-[10px]" dir="ltr">
+                <span className="font-mono text-xs" dir="ltr">
                   {rgbToHex(bgSwatch)}
                 </span>
               </span>
             )}
             <div className="mr-auto flex items-center gap-2">
-              <span className="font-mono text-[11px] text-slate-500" dir="ltr">
+              <span className="font-mono text-xs text-faint" dir="ltr">
                 {source.w}×{source.h}
               </span>
               {boxes.length > 0 && (
@@ -542,7 +547,7 @@ export function SheetCutter() {
                     setBoxes([]);
                     setSelectedId(null);
                   }}
-                  className="text-slate-400 hover:text-rose-300"
+                  className="text-soft hover:text-rose-ink"
                 >
                   <X className="h-4 w-4" />
                   پاک‌کردن کادرها
@@ -552,7 +557,7 @@ export function SheetCutter() {
           </div>
 
           <div
-            className="h-[560px] overflow-hidden rounded-2xl border border-white/10 float-bar"
+            className="h-[55dvh] min-h-[340px] overflow-hidden rounded-2xl border border-line float-bar sm:h-[560px]"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
@@ -567,7 +572,7 @@ export function SheetCutter() {
               onChange={setBoxes}
             />
           </div>
-          <p className="px-1 text-[11px] text-slate-500">
+          <p className="px-1 text-xs text-faint">
             روی تصویر یک کادر بکشید تا آیتم جدیدی اضافه شود · درگ برای جابجایی · ۸ دستگیره برای
             تغییر اندازه
           </p>
@@ -577,15 +582,15 @@ export function SheetCutter() {
         <aside className="flex flex-col gap-3">
           {/* detected boxes — graphical thumbnails */}
           <section className="rounded-2xl panel-glass p-4 space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-              <Boxes className="h-4 w-4 text-violet-400" />
+            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <Boxes className="h-4 w-4 text-violet-ink" />
               کادرهای شناسایی‌شده
-              <span className="mr-auto rounded-md bg-violet-500/20 px-2 py-0.5 text-xs text-violet-300">
+              <span className="mr-auto rounded-md bg-violet-tint px-2 py-0.5 text-xs text-violet-ink">
                 {boxes.length}
               </span>
             </h3>
             {boxes.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-white/15 bg-slate-950/40 px-3 py-4 text-center text-[11px] leading-5 text-slate-500">
+              <p className="rounded-xl border border-dashed border-line-strong bg-surface px-3 py-4 text-center text-xs leading-5 text-faint">
                 هنوز کادری نیست — با دکمه‌های تشخیص در بالا، یا کشیدن مستقیم روی تصویر کادر بسازید
               </p>
             ) : (
@@ -601,8 +606,8 @@ export function SheetCutter() {
                     className={cn(
                       "group relative cursor-pointer overflow-hidden rounded-xl border transition-all",
                       selectedId === t.id
-                        ? "border-cyan-400/70 neon-ring"
-                        : "border-white/10 hover:border-violet-400/50"
+                        ? "border-cyan-line-strong neon-ring"
+                        : "border-line hover:border-violet-line-strong"
                     )}
                   >
                     <img
@@ -610,10 +615,10 @@ export function SheetCutter() {
                       alt={`کادر ${t.index + 1}`}
                       className="checker-dark h-16 w-full object-contain"
                     />
-                    <span className="absolute right-1 top-1 rounded bg-violet-600/90 px-1 font-mono text-[9px] text-white" dir="ltr">
+                    <span className="absolute right-1 top-1 rounded bg-violet-600/90 px-1 font-mono text-xs text-white" dir="ltr">
                       {t.index + 1}
                     </span>
-                    <div className="absolute inset-0 flex items-center justify-center gap-1 bg-slate-950/70 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="absolute inset-0 flex items-center justify-center gap-1 bg-surface opacity-0 transition-opacity group-hover:opacity-100">
                       <button
                         type="button"
                         aria-label="دانلود این برش"
@@ -622,7 +627,7 @@ export function SheetCutter() {
                           e.stopPropagation();
                           void downloadOneBox(boxes[t.index], t.index);
                         }}
-                        className="rounded-lg bg-slate-900/90 p-1.5 text-cyan-300 hover:text-cyan-200"
+                        className="rounded-lg bg-overlay p-1.5 text-cyan-ink hover:text-cyan-ink"
                       >
                         <Download className="h-3.5 w-3.5" />
                       </button>
@@ -634,7 +639,7 @@ export function SheetCutter() {
                           setBoxes((prev) => prev.filter((x) => x.id !== t.id));
                           if (selectedId === t.id) setSelectedId(null);
                         }}
-                        className="rounded-lg bg-slate-900/90 p-1.5 text-rose-400 hover:text-rose-300"
+                        className="rounded-lg bg-overlay p-1.5 text-rose-ink hover:text-rose-ink"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -647,8 +652,8 @@ export function SheetCutter() {
 
           {/* local detection settings */}
           <section className="rounded-2xl panel-glass p-4 space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-              <ScanLine className="h-4 w-4 text-violet-400" />
+            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <ScanLine className="h-4 w-4 text-violet-ink" />
               حساسیت تشخیص محلی
             </h3>
             <SliderRow
@@ -660,7 +665,7 @@ export function SheetCutter() {
               step={2}
               onChange={setDetectTolerance}
             />
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-faint">
               کاملاً آفلاین روی دستگاه شما اجرا می‌شود.
             </p>
           </section>
@@ -668,8 +673,8 @@ export function SheetCutter() {
           {/* background removal engine */}
           <section className="rounded-2xl panel-glass p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-200">
-                <WandSparkles className="h-4 w-4 text-cyan-400" />
+              <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <WandSparkles className="h-4 w-4 text-cyan-ink" />
                 موتور حذف پس‌زمینه
               </h3>
               <Switch checked={bgEnabled} onCheckedChange={setBgEnabled} aria-label="حذف پس‌زمینه" />
@@ -713,7 +718,7 @@ export function SheetCutter() {
                 onChange={setDefringe}
               />
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-400">حذف حفره‌های محصور</Label>
+                <Label className="text-xs text-soft">حذف حفره‌های محصور</Label>
                 <Switch checked={removeHoles} onCheckedChange={setRemoveHoles} aria-label="حذف حفره‌ها" />
               </div>
               {removeHoles && (
@@ -728,7 +733,7 @@ export function SheetCutter() {
                 />
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-faint">
               فیلودفیل از سد Sobel عبور نمی‌کند؛ حفره‌ها تا سقف مساحت حذف می‌شوند تا لباس‌ها سوراخ نشوند.
             </p>
           </section>
@@ -736,10 +741,10 @@ export function SheetCutter() {
       </div>
 
       {/* ---------- sticky bottom action bar: cut + download ---------- */}
-      <div className="sticky bottom-3 z-30">
-        <div className="float-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-white/10 panel-glass px-4 py-3">
+      <div className="sticky-safe">
+        <div className="float-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line panel-glass px-3 py-2.5 sm:px-4 sm:py-3">
           <div className="flex items-center gap-2">
-            <Label htmlFor="crop-prefix" className="shrink-0 text-xs text-slate-400">
+            <Label htmlFor="crop-prefix" className="shrink-0 text-xs text-soft">
               پیشوند
             </Label>
             <input
@@ -748,30 +753,31 @@ export function SheetCutter() {
               onChange={(e) => setPrefix(e.target.value)}
               dir="ltr"
               placeholder="sprite"
-              className="w-28 rounded-lg border border-white/10 bg-slate-950/60 px-2.5 py-1.5 font-mono text-sm text-slate-200 outline-none focus:border-cyan-400/50"
+              className="h-9 w-24 rounded-lg border border-line bg-surface px-2.5 py-1.5 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong sm:h-auto sm:w-28"
             />
-            <span className="hidden font-mono text-[10px] text-slate-500 sm:inline" dir="ltr">
+            <span className="hidden font-mono text-xs text-faint sm:inline" dir="ltr">
               {frameName(`${prefix.trim() || "sprite"}_{i}`, 0, Math.max(1, boxes.length))}.webp
             </span>
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 hover:border-cyan-400/40">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-chip px-3 py-1.5 text-xs text-soft hover:border-cyan-line-strong">
             <Switch checked={autoDownload} onCheckedChange={setAutoDownload} aria-label="دانلود خودکار ZIP" />
-            <Package className="h-3.5 w-3.5 text-cyan-300" />
+            <Package className="h-3.5 w-3.5 text-cyan-ink" />
             دانلود خودکار ZIP
           </label>
 
-          <div className="mr-auto flex items-center gap-2">
+          <div className="mr-auto flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
               variant="secondary"
               size="sm"
               disabled={!selectedBox || cropping}
               onClick={openMaskEditor}
-              className="border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:border-cyan-400/60"
+              className="border border-cyan-line bg-cyan-tint text-cyan-ink hover:border-cyan-line-strong"
             >
               <Pipette className="h-4 w-4" />
-              ویرایش ماسک
+              <span className="hidden sm:inline">ویرایش ماسک</span>
+              <span className="sm:hidden">ماسک</span>
             </Button>
             <Button
               type="button"
@@ -782,7 +788,8 @@ export function SheetCutter() {
               {cropping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
               {autoDownload ? (
                 <>
-                  برش همه و دانلود ZIP
+                  <span className="hidden sm:inline">برش همه و دانلود ZIP</span>
+                  <span className="sm:hidden">برش و ZIP</span>
                   <span className="rounded-md bg-black/25 px-1.5 py-0.5 text-xs">{boxes.length}</span>
                 </>
               ) : (
