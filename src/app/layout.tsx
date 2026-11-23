@@ -8,18 +8,16 @@ import { SwRegister } from "@/components/sw-register";
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata: Metadata = {
-  title: "Remove Page — حذف پس‌زمینه، استخراج فریم و ساخت تامنل",
+  title: "Remove Page — حذف پس‌زمینه، استخراج فریم و اسپرایت‌شیت",
   description:
-    "حذف خودکار و دقیق پس‌زمینه تصاویر و گیف، برش هوشمند شیت، استخراج فریم از ویدیو، اسپرایت‌شیت و ساخت تامنل — همه‌چیز داخل مرورگر.",
+    "حذف خودکار و دقیق پس‌زمینه تصاویر و گیف، برش هوشمند شیت و استخراج فریم از ویدیو — همه‌چیز داخل مرورگر.",
   keywords: [
     "remove background",
     "background removal",
-    "thumbnail maker",
     "sprite sheet",
     "chroma key",
     "gif frames",
     "حذف پس‌زمینه",
-    "ساخت تامنل",
     "کروماکی",
   ],
   manifest: `${BP}/manifest.webmanifest`,
@@ -42,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Remove Page",
     description:
-      "حذف پس‌زمینه، برش شیت، استخراج فریم ویدیو و گیف و ساخت تامنل — همه‌چیز داخل مرورگر",
+      "حذف پس‌زمینه، برش شیت و استخراج فریم ویدیو و گیف — همه‌چیز داخل مرورگر",
     images: [{ url: `${BP}/og-image.png`, width: 1200, height: 630 }],
     locale: "fa_IR",
     type: "website",
