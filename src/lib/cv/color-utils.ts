@@ -104,3 +104,84 @@ export function dominantEdgeColor(
     ratio: best.n / total,
   };
 }
+
+export interface EdgeColorCluster {
+  color: RGB;
+  /** Share of sampled border pixels belonging to this cluster (0..1). */
+  ratio: number;
+}
+
+/**
+ * Multi-cluster dominant color sampling of the outer border band.
+ * Quantizes border pixels into 8-bit-per-channel buckets, then returns the
+ * top clusters (>= minShare) as average colors — robust against gradient
+ * backgrounds, shadows and multi-tone paper textures.
+ */
+export function dominantEdgeColors(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  band = 3,
+  maxClusters = 3,
+  minShare = 0.08
+): EdgeColorCluster[] {
+  const buckets = new Map<number, { r: number; g: number; b: number; n: number }>();
+  let total = 0;
+
+  const add = (x: number, y: number) => {
+    const idx = (y * width + x) * 4;
+    const a = data[idx + 3];
+    if (a < 8) return;
+    const r = data[idx];
+    const g = data[idx + 1];
+    const b = data[idx + 2];
+    const key = ((r >> 5) << 10) | ((g >> 5) << 5) | (b >> 5);
+    const cur = buckets.get(key) ?? { r: 0, g: 0, b: 0, n: 0 };
+    cur.r += r;
+    cur.g += g;
+    cur.b += b;
+    cur.n += 1;
+    buckets.set(key, cur);
+    total += 1;
+  };
+
+  for (let y = 0; y < Math.min(band, height); y++) {
+    for (let x = 0; x < width; x++) {
+      add(x, y);
+      add(x, height - 1 - y);
+    }
+  }
+  for (let x = 0; x < Math.min(band, width); x++) {
+    for (let y = 0; y < height; y++) {
+      add(x, y);
+      add(width - 1 - x, y);
+    }
+  }
+
+  if (total === 0) return [{ color: [255, 255, 255], ratio: 1 }];
+
+  const sorted = [...buckets.values()].sort((p, q) => q.n - p.n);
+  const clusters: EdgeColorCluster[] = [];
+  for (const bucket of sorted) {
+    const ratio = bucket.n / total;
+    if (clusters.length >= maxClusters) break;
+    if (clusters.length === 0 || ratio >= minShare) {
+      // merge buckets that are already close to an accepted cluster color
+      const color: RGB = [bucket.r / bucket.n, bucket.g / bucket.n, bucket.b / bucket.n];
+      const near = clusters.some((c) => colorDist(color, c.color) < 24);
+      if (!near) clusters.push({ color, ratio });
+    }
+  }
+  if (clusters.length === 0) clusters.push({ color: [255, 255, 255], ratio: 1 });
+  return clusters;
+}
+
+/** Minimum color distance of a pixel to a set of cluster colors. */
+export function minClusterDist(px: RGB, clusters: RGB[]): number {
+  let best = Infinity;
+  for (const c of clusters) {
+    const d = colorDist(px, c);
+    if (d < best) best = d;
+  }
+  return best;
+}

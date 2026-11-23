@@ -60,11 +60,13 @@
   --color-cyan-line: var(--cyan-line);
   --color-fuchsia-line: var(--fuchsia-line);
   --color-rose-line: var(--rose-line);
+  --color-emerald-line: var(--emerald-line);
   /* accent tints: translucent washes */
   --color-violet-tint: var(--violet-tint);
   --color-cyan-tint: var(--cyan-tint);
   --color-fuchsia-tint: var(--fuchsia-tint);
   --color-rose-tint: var(--rose-tint);
+  --color-emerald-tint: var(--emerald-tint);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -144,10 +146,12 @@
   --cyan-line: oklch(0.55 0.125 200 / 0.5);
   --fuchsia-line: oklch(0.55 0.2 330 / 0.5);
   --rose-line: oklch(0.55 0.2 15 / 0.5);
+  --emerald-line: oklch(0.55 0.13 160 / 0.5);
   --violet-tint: oklch(0.55 0.2 295 / 0.11);
   --cyan-tint: oklch(0.55 0.125 200 / 0.11);
   --fuchsia-tint: oklch(0.55 0.2 330 / 0.11);
   --rose-tint: oklch(0.55 0.2 15 / 0.11);
+  --emerald-tint: oklch(0.55 0.13 160 / 0.11);
 
   /* glass + decorative gradients */
   --glass-a: oklch(1 0 0 / 0.8);
@@ -222,10 +226,12 @@
   --cyan-line: oklch(0.78 0.14 195 / 0.38);
   --fuchsia-line: oklch(0.78 0.15 330 / 0.38);
   --rose-line: oklch(0.78 0.15 20 / 0.38);
+  --emerald-line: oklch(0.78 0.12 165 / 0.38);
   --violet-tint: oklch(0.62 0.21 295 / 0.13);
   --cyan-tint: oklch(0.78 0.14 195 / 0.12);
   --fuchsia-tint: oklch(0.72 0.16 330 / 0.13);
   --rose-tint: oklch(0.65 0.18 20 / 0.13);
+  --emerald-tint: oklch(0.65 0.18 145 / 0.13);
 
   /* glass + decorative gradients */
   --glass-a: oklch(0.24 0.03 288 / 0.66);
@@ -446,6 +452,97 @@
     }
     50% {
       box-shadow: 0 0 0 10px oklch(0.62 0.21 295 / 0), 0 8px 40px oklch(0.55 0.22 295 / 0.5);
+    }
+  }
+
+  /* ---------- hero band (top graphical strip) ---------- */
+  .hero-band {
+    background: linear-gradient(145deg, var(--glass-a), var(--glass-b));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow:
+      0 1px 0 oklch(1 0 0 / 0.12) inset,
+      0 12px 40px oklch(0.5 0.15 295 / 0.12);
+  }
+  :root:not(.dark) .hero-band {
+    box-shadow:
+      0 1px 0 oklch(1 0 0 / 0.9) inset,
+      0 12px 40px oklch(0.45 0.1 295 / 0.1);
+  }
+
+  /* blueprint grid texture inside the hero */
+  .hero-grid {
+    background-image:
+      linear-gradient(oklch(0.62 0.16 295 / 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.62 0.16 295 / 0.1) 1px, transparent 1px);
+    background-size: 26px 26px;
+    mask-image: radial-gradient(ellipse 90% 120% at 50% 0%, black 40%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 120% at 50% 0%, black 40%, transparent 78%);
+  }
+
+  /* floating app icon inside the hero */
+  .hero-icon-float {
+    animation: hero-float 5.5s ease-in-out infinite;
+    filter: drop-shadow(0 10px 26px oklch(0.55 0.22 295 / 0.45));
+  }
+  @keyframes hero-float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-7px) rotate(-1.5deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-icon-float,
+    .hero-icon-glow {
+      animation: none;
+    }
+  }
+
+  /* glowing gradient ring around the header logo */
+  .logo-ring {
+    background: conic-gradient(
+      from 0deg,
+      oklch(0.62 0.21 295 / 0.95),
+      oklch(0.8 0.14 195 / 0.95),
+      oklch(0.72 0.16 330 / 0.95),
+      oklch(0.62 0.21 295 / 0.95)
+    );
+    box-shadow: 0 4px 18px oklch(0.55 0.22 295 / 0.35);
+  }
+
+  /* ---------- ambient floating orbs ---------- */
+  .orb {
+    opacity: 0.5;
+    animation: orb-drift 14s ease-in-out infinite alternate;
+  }
+  .orb-violet {
+    background: radial-gradient(circle, oklch(0.5 0.2 295 / 0.34), transparent 68%);
+  }
+  .orb-cyan {
+    background: radial-gradient(circle, oklch(0.6 0.14 195 / 0.24), transparent 68%);
+    animation-delay: -6s;
+  }
+  .orb-fuchsia {
+    background: radial-gradient(circle, oklch(0.55 0.19 330 / 0.26), transparent 68%);
+    animation-delay: -10s;
+  }
+  :root:not(.dark) .orb {
+    opacity: 0.36;
+  }
+  @keyframes orb-drift {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    100% {
+      transform: translate3d(4%, 6%, 0) scale(1.12);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .orb {
+      animation: none;
     }
   }
 }

@@ -1,15 +1,19 @@
 /**
- * Client-side hybrid detection fallback:
- * 1. Dominant background color sampled from the image edges.
- * 2. Foreground binary mask via color distance.
+ * Client-side hybrid detection fallback — precision edition:
+ * 1. Multi-cluster dominant background colors sampled from the image edges
+ *    (handles gradients / shadows / textured paper).
+ * 2. Foreground binary mask via min color distance to the clusters.
  * 3. Morphological closing (dilate + erode) to merge sprite parts.
  * 4. Connected Component Labeling (BFS) with bounding-box extraction.
  * 5. Iterative box merging for nearby/overlapping fragments.
+ * 6. FULL-RESOLUTION SHRINK-WRAP refinement: every box edge is walked
+ *    inward/outward on the original image until it hugs the artwork —
+ *    the box no longer keeps the padding of the downscaled analysis pass.
  *
- * Runs entirely offline on a downscaled working canvas.
+ * Runs entirely offline.
  */
 
-import { colorDist, dominantEdgeColor, type RGB } from "./color-utils";
+import { colorDist, dominantEdgeColors, minClusterDist, type RGB } from "./color-utils";
 
 export interface Box {
   id: string;
@@ -29,6 +33,11 @@ export interface DetectOptions {
   mergeGap?: number;
   /** Ignore components smaller than this ratio of image area (default 0.0012). */
   minAreaRatio?: number;
+  /**
+   * Trusted background colors (e.g. sampled once and reused). When omitted,
+   * clusters are estimated from the image border.
+   */
+  bgColors?: RGB[] | null;
 }
 
 let boxCounter = 0;
@@ -114,6 +123,120 @@ export interface DetectionResult {
   bgRatio: number;
 }
 
+/** Full-res strip inspector: lazily reads 1px columns/rows from the source. */
+class StripInspector {
+  private cache = new Map<string, { fg: number; n: number }>();
+  constructor(
+    private source: HTMLCanvasElement,
+    private clusters: RGB[],
+    private tolerance: number
+  ) {}
+
+  private read(x: number, y0: number, y1: number): Uint8ClampedArray | null {
+    if (x < 0 || x >= this.source.width || y0 >= y1) return null;
+    const ctx = this.source.getContext("2d", { willReadFrequently: true })!;
+    const h = y1 - y0;
+    return ctx.getImageData(x, y0, 1, h).data;
+  }
+
+  private readRow(y: number, x0: number, x1: number): Uint8ClampedArray | null {
+    if (y < 0 || y >= this.source.height || x0 >= x1) return null;
+    const ctx = this.source.getContext("2d", { willReadFrequently: true })!;
+    const wpx = x1 - x0;
+    return ctx.getImageData(x0, y, wpx, 1).data;
+  }
+
+  /** Ratio (0..1) of foreground-looking pixels in a 1px column. */
+  colFgRatio(x: number, y0: number, y1: number): number {
+    const key = `c${x}:${y0}-${y1}`;
+    const hit = this.cache.get(key);
+    if (hit) return hit.fg / hit.n;
+    const d = this.read(x, y0, y1);
+    if (!d) return 1; // out of bounds → treat as content, don't shrink past
+    let fg = 0;
+    let n = 0;
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      n += 1;
+      if (d[i + 3] < 16) continue;
+      if (minClusterDist([d[i], d[i + 1], d[i + 2]], this.clusters) > this.tolerance) fg += 1;
+    }
+    this.cache.set(key, { fg, n });
+    return n === 0 ? 1 : fg / n;
+  }
+
+  /** Ratio (0..1) of foreground-looking pixels in a 1px row segment. */
+  rowFgRatio(y: number, x0: number, x1: number): number {
+    const key = `r${y}:${x0}-${x1}`;
+    const hit = this.cache.get(key);
+    if (hit) return hit.fg / hit.n;
+    const d = this.readRow(y, x0, x1);
+    if (!d) return 1;
+    let fg = 0;
+    let n = 0;
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      n += 1;
+      if (d[i + 3] < 16) continue;
+      if (minClusterDist([d[i], d[i + 1], d[i + 2]], this.clusters) > this.tolerance) fg += 1;
+    }
+    this.cache.set(key, { fg, n });
+    return n === 0 ? 1 : fg / n;
+  }
+}
+
+interface RRect {
+  x: number;
+  y: number;
+  x2: number;
+  y2: number;
+}
+
+/**
+ * Shrink-wrap one full-resolution rect: walk each edge inward while the
+ * strip is (almost) empty background, then walk outward while the adjacent
+ * strip is clearly still foreground. Result: boxes hug the sprite contour.
+ */
+function shrinkWrap(
+  insp: StripInspector,
+  sw: number,
+  sh: number,
+  rect: RRect
+): RRect {
+  // clamp to image
+  let { x, y, x2, y2 } = rect;
+  x = Math.max(0, Math.min(sw - 1, Math.round(x)));
+  y = Math.max(0, Math.min(sh - 1, Math.round(y)));
+  x2 = Math.max(x + 4, Math.min(sw, Math.round(x2)));
+  y2 = Math.max(y + 4, Math.min(sh, Math.round(y2)));
+
+  const maxSide = Math.max(x2 - x, y2 - y);
+  // how far edges may move inward (trim empty margin)
+  const shrinkBudget = Math.max(6, Math.min(48, Math.round(maxSide * 0.12)));
+  // how far edges may move outward (grab cut-off anti-aliased edges)
+  const expandBudget = Math.max(2, Math.min(14, Math.round(maxSide * 0.04)));
+
+  // ---- shrink pass ----
+  let budget = shrinkBudget;
+  while (budget-- > 0 && x2 - x > 8 && insp.colFgRatio(x, y, y2) < 0.015) x++;
+  budget = shrinkBudget;
+  while (budget-- > 0 && x2 - x > 8 && insp.colFgRatio(x2 - 1, y, y2) < 0.015) x2--;
+  budget = shrinkBudget;
+  while (budget-- > 0 && y2 - y > 8 && insp.rowFgRatio(y, x, x2) < 0.015) y++;
+  budget = shrinkBudget;
+  while (budget-- > 0 && y2 - y > 8 && insp.rowFgRatio(y2 - 1, x, x2) < 0.015) y2--;
+
+  // ---- expand pass (re-capture anti-aliased borders) ----
+  budget = expandBudget;
+  while (budget-- > 0 && x > 0 && insp.colFgRatio(x - 1, y, y2) > 0.3) x--;
+  budget = expandBudget;
+  while (budget-- > 0 && x2 < sw && insp.colFgRatio(x2, y, y2) > 0.3) x2++;
+  budget = expandBudget;
+  while (budget-- > 0 && y > 0 && insp.rowFgRatio(y - 1, x, x2) > 0.3) y--;
+  budget = expandBudget;
+  while (budget-- > 0 && y2 < sh && insp.rowFgRatio(y2, x, x2) > 0.3) y2++;
+
+  return { x, y, x2, y2 };
+}
+
 /**
  * Detect sprite bounding boxes on a canvas without any server round-trip.
  */
@@ -128,7 +251,8 @@ export function detectBoxes(
 
   const sw = source.width;
   const sh = source.height;
-  const scale = Math.min(1, 900 / Math.max(sw, sh));
+  // higher working resolution → finer initial boxes (refined on full res later)
+  const scale = Math.min(1, 1400 / Math.max(sw, sh));
   const w = Math.max(2, Math.round(sw * scale));
   const h = Math.max(2, Math.round(sh * scale));
 
@@ -140,14 +264,23 @@ export function detectBoxes(
   const img = wctx.getImageData(0, 0, w, h);
   const data = img.data;
 
-  const bg = dominantEdgeColor(data, w, h, 2);
+  // --- background clusters (hint wins) ---
+  let clusters: RGB[];
+  let bgRatio: number;
+  if (options.bgColors && options.bgColors.length > 0) {
+    clusters = options.bgColors;
+    bgRatio = 1;
+  } else {
+    const found = dominantEdgeColors(data, w, h, 3, 3, 0.1);
+    clusters = found.map((c) => c.color);
+    bgRatio = found[0]?.ratio ?? 0;
+  }
 
   // --- foreground binary mask ---
   let fg: Uint8Array<ArrayBufferLike> = new Uint8Array(w * h);
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     if (data[i + 3] < 16) continue; // already transparent
-    const dist = colorDist([data[i], data[i + 1], data[i + 2]], bg.color);
-    if (dist > tolerance) fg[p] = 1;
+    if (minClusterDist([data[i], data[i + 1], data[i + 2]], clusters) > tolerance) fg[p] = 1;
   }
 
   // --- morphological closing (dilate -> erode) ---
@@ -253,22 +386,28 @@ export function detectBoxes(
     return ra - rb;
   });
 
-  // --- map back to source resolution ---
-  const pad = 2;
+  // --- full-resolution shrink-wrap refinement ---
+  const insp = new StripInspector(source, clusters, tolerance);
   const boxes: Box[] = rects.map((r) => {
-    const x = Math.max(0, r.x / scale - pad);
-    const y = Math.max(0, r.y / scale - pad);
-    const x2 = Math.min(sw, (r.x + r.w) / scale + pad);
-    const y2 = Math.min(sh, (r.y + r.h) / scale + pad);
+    const fx = r.x / scale;
+    const fy = r.y / scale;
+    const fx2 = (r.x + r.w) / scale;
+    const fy2 = (r.y + r.h) / scale;
+    const refined = shrinkWrap(insp, sw, sh, { x: fx, y: fy, x2: fx2, y2: fy2 });
+    // 1px safety pad so anti-aliased borders are never clipped
+    const px = Math.max(0, refined.x - 1);
+    const py = Math.max(0, refined.y - 1);
+    const px2 = Math.min(sw, refined.x2 + 1);
+    const py2 = Math.min(sh, refined.y2 + 1);
     return {
       id: makeBoxId(),
-      x: Math.round(x),
-      y: Math.round(y),
-      w: Math.max(4, Math.round(x2 - x)),
-      h: Math.max(4, Math.round(y2 - y)),
+      x: Math.round(px),
+      y: Math.round(py),
+      w: Math.max(4, Math.round(px2 - px)),
+      h: Math.max(4, Math.round(py2 - py)),
       label: undefined,
     };
   });
 
-  return { boxes, bgColor: bg.color, bgRatio: bg.ratio };
+  return { boxes, bgColor: clusters[0], bgRatio };
 }

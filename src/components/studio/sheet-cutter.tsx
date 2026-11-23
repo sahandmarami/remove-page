@@ -65,7 +65,7 @@ const FEATURES = [
   {
     icon: Package,
     title: "برش و دانلود ZIP",
-    desc: "همه برش‌ها یک‌جا، WebP شفاف با آلفای کامل",
+    desc: "همه برش‌ها یک‌جا، WebP شفاف با لبه دقیق پیکسلی",
     cls: "border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink",
   },
 ] as const;
@@ -125,7 +125,9 @@ export function SheetCutter() {
   const [removeHoles, setRemoveHoles] = useState(DEFAULT_BG_OPTIONS.removeHoles);
   const [holeCap, setHoleCap] = useState(DEFAULT_BG_OPTIONS.holeMaxPercent);
   const [bgSwatch, setBgSwatch] = useState<RGB | null>(null);
-
+  /** trusted background color measured on the full sheet — reused for every crop */
+  const [bgHint, setBgHint] = useState<RGB | null>(null);
+  
   const [prefix, setPrefix] = useState("sprite");
   const [autoDownload, setAutoDownload] = useState(true);
   const [cropping, setCropping] = useState(false);
@@ -141,6 +143,7 @@ export function SheetCutter() {
     setBoxes([]);
     setSelectedId(null);
     setBgSwatch(null);
+    setBgHint(null);
     toast.success("تصویر بارگذاری شد", { description: `${name} — ${canvas.width}×${canvas.height}` });
   }, []);
 
@@ -180,6 +183,7 @@ export function SheetCutter() {
         setBoxes(result.boxes);
         setSelectedId(null);
         setBgSwatch(result.bgColor);
+        setBgHint(result.bgColor);
         if (result.boxes.length === 0) {
           toast.warning("آیتمی پیدا نشد", {
             description: "آستانه حساسیت را کاهش دهید یا از تشخیص هوش مصنوعی استفاده کنید",
@@ -284,6 +288,7 @@ export function SheetCutter() {
         defringe,
         removeHoles,
         holeMaxPercent: holeCap,
+        bgColorHint: bgHint,
       });
       const processed = document.createElement("canvas");
       processed.width = original.width;
@@ -291,7 +296,7 @@ export function SheetCutter() {
       processed.getContext("2d")!.putImageData(result.image, 0, 0);
       return { original, processed };
     },
-    [bgEnabled, bgTolerance, defringe, edgeBarrier, feather, holeCap, removeHoles, source]
+    [bgEnabled, bgTolerance, bgHint, defringe, edgeBarrier, feather, holeCap, removeHoles, source]
   );
 
   const openMaskEditor = useCallback(() => {

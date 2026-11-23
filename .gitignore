@@ -54,3 +54,9 @@ server.log
 /skills/
 # static export (GitHub Pages artifact)
 /.next-export/
+
+# private workspace files
+upload/
+tool-results/
+dev.log
+server.log

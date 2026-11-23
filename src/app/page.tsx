@@ -1,6 +1,6 @@
 "use client";
 
-import { Film, Scissors, Clapperboard, Sparkles, ScanSearch, Layers3 } from "lucide-react";
+import { Film, Scissors, Clapperboard, Sparkles, Crosshair, Wand2, PackageCheck, Cpu } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SheetCutter } from "@/components/studio/sheet-cutter";
 import { VideoStudio } from "@/components/studio/video-studio";
@@ -8,6 +8,9 @@ import { Animator } from "@/components/studio/animator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useFrameStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
+/** static-export basePath — empty in dev */
+const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const TABS = [
   {
@@ -20,6 +23,7 @@ const TABS = [
     iconBox: "metallic-gradient text-white",
     dot: "bg-violet-400",
     dotOn: "group-data-[state=active]/tab-sheet:opacity-100 group-data-[state=active]/tab-sheet:scale-125",
+    glow: "group-data-[state=active]/tab-sheet:opacity-100",
   },
   {
     value: "video",
@@ -31,6 +35,7 @@ const TABS = [
     iconBox: "border border-cyan-line bg-cyan-tint text-cyan-ink",
     dot: "bg-cyan-400",
     dotOn: "group-data-[state=active]/tab-video:opacity-100 group-data-[state=active]/tab-video:scale-125",
+    glow: "group-data-[state=active]/tab-video:opacity-100",
   },
   {
     value: "animator",
@@ -42,7 +47,15 @@ const TABS = [
     iconBox: "border border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink",
     dot: "bg-fuchsia-400",
     dotOn: "group-data-[state=active]/tab-anim:opacity-100 group-data-[state=active]/tab-anim:scale-125",
+    glow: "group-data-[state=active]/tab-anim:opacity-100",
   },
+] as const;
+
+const HERO_CHIPS = [
+  { icon: Crosshair, label: "برش پیکسلی دقیق", cls: "border-violet-line bg-violet-tint text-violet-ink" },
+  { icon: Wand2, label: "حذف هوشمند پس‌زمینه", cls: "border-cyan-line bg-cyan-tint text-cyan-ink" },
+  { icon: Cpu, label: "موتور بینایی ماشین", cls: "border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink" },
+  { icon: PackageCheck, label: "خروجی ZIP شفاف", cls: "border-emerald-line bg-emerald-tint text-emerald-ink" },
 ] as const;
 
 export default function Home() {
@@ -50,14 +63,26 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* ---------- decorative background ---------- */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="orb orb-violet absolute -top-32 right-[8%] h-72 w-72 rounded-full blur-3xl sm:h-96 sm:w-96" />
+        <div className="orb orb-cyan absolute top-1/3 -left-24 h-56 w-56 rounded-full blur-3xl sm:h-80 sm:w-80" />
+        <div className="orb orb-fuchsia absolute -bottom-40 right-1/3 h-64 w-64 rounded-full blur-3xl" />
+      </div>
+
       {/* ---------- header ---------- */}
       <header className="sticky top-0 z-40 border-b border-line bg-background/80 backdrop-blur-xl">
         <div className="top-hairline absolute inset-x-0 bottom-0 h-px opacity-70" />
         <div className="mx-auto flex max-w-7xl items-center gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
-          <div className="rounded-xl metallic-gradient p-[1.5px] glow-purple">
-            <div className="rounded-xl bg-background p-2">
-              <Scissors className="h-5 w-5 text-cyan-ink" />
-            </div>
+          {/* real app logo */}
+          <div className="logo-ring shrink-0 rounded-2xl p-[2px]">
+            <img
+              src={`${BP}/icon-192.png`}
+              alt="لوگوی اسپرایت‌فورج"
+              className="h-10 w-10 rounded-[14px] object-cover sm:h-11 sm:w-11"
+              width={44}
+              height={44}
+            />
           </div>
           <div className="min-w-0">
             <h1 className="text-base font-black leading-6 metallic-text sm:text-lg">اسپرایت‌فورج</h1>
@@ -68,7 +93,7 @@ export default function Home() {
 
           <div className="mr-auto flex items-center gap-2">
             <span className="hidden items-center gap-1.5 rounded-lg border border-line bg-chip px-2.5 py-1.5 text-xs font-medium text-soft sm:flex">
-              <Layers3 className="h-3.5 w-3.5 text-cyan-ink" />
+              <Sparkles className="h-3.5 w-3.5 text-cyan-ink" />
               {frameCount} فریم
             </span>
             <ThemeToggle />
@@ -77,7 +102,47 @@ export default function Home() {
       </header>
 
       {/* ---------- main ---------- */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-4 sm:py-5">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3 pb-6 pt-3 sm:px-4 sm:pt-5">
+        {/* ---------- graphical hero strip ---------- */}
+        <section className="hero-band relative mb-4 overflow-hidden rounded-3xl border border-line sm:mb-6">
+          <div className="hero-grid pointer-events-none absolute inset-0" />
+          <div className="relative flex items-center gap-3 px-4 py-4 sm:gap-5 sm:px-7 sm:py-6">
+            <div className="hero-icon-float shrink-0">
+              <img
+                src={`${BP}/icon-192.png`}
+                alt=""
+                aria-hidden
+                className="h-16 w-16 rounded-2xl sm:h-24 sm:w-24"
+                width={96}
+                height={96}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-black leading-7 metallic-text sm:text-2xl sm:leading-9">
+                استودیوی برش و اسپرایت، داخل مرورگر شما
+              </h2>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-soft sm:text-sm sm:leading-6">
+                با موتور بینایی ماشین، آیتم‌های شیت را دقیق پیدا کن، پس‌زمینه را تمیز جدا کن و
+                اسپرایت‌شیت یا فریم‌های شفاف بساز.
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5 sm:mt-3.5 sm:gap-2">
+                {HERO_CHIPS.map((c) => (
+                  <span
+                    key={c.label}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold sm:px-3 sm:text-xs",
+                      c.cls
+                    )}
+                  >
+                    <c.icon className="h-3.5 w-3.5" />
+                    {c.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <Tabs defaultValue="sheet" className="w-full">
           {/* graphical tab cards */}
           <TabsList className="mb-4 grid h-auto w-full grid-cols-1 items-stretch gap-2.5 rounded-none border-0 bg-transparent p-0 sm:mb-5 sm:grid-cols-3 sm:gap-3">
@@ -86,19 +151,26 @@ export default function Home() {
                 key={t.value}
                 value={t.value}
                 className={cn(
-                  "tab-card h-auto flex-col items-start gap-2 rounded-2xl border border-line bg-surface p-3 backdrop-blur hover:border-line-strong sm:gap-2.5 sm:p-4",
+                  "tab-card group h-auto flex-col items-start gap-2 overflow-hidden rounded-2xl border border-line bg-surface p-3 backdrop-blur hover:border-line-strong sm:gap-2.5 sm:p-4",
                   t.group,
                   t.active
                 )}
               >
-                <span className="flex w-full items-center gap-2.5 sm:gap-3">
+                <span
+                  className={cn(
+                    "pointer-events-none absolute inset-x-0 -top-8 h-16 opacity-0 blur-2xl transition-opacity duration-500",
+                    t.dot,
+                    t.glow
+                  )}
+                />
+                <span className="relative flex w-full items-center gap-2.5 sm:gap-3">
                   <span
                     className={cn(
-                      "grid h-10 w-10 shrink-0 place-items-center rounded-xl shadow-lg transition-transform group-hover:scale-105",
+                      "grid h-10 w-10 shrink-0 place-items-center rounded-xl shadow-lg transition-transform group-hover:scale-110 group-active:scale-95 sm:h-11 sm:w-11",
                       t.iconBox
                     )}
                   >
-                    <t.icon className="h-5 w-5" />
+                    <t.icon className="h-5 w-5 sm:h-5.5 sm:w-5.5" />
                   </span>
                   <span className="flex min-w-0 flex-col items-start gap-0.5">
                     <span className="text-sm font-black text-foreground">{t.title}</span>
@@ -127,20 +199,6 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </main>
-
-      {/* ---------- footer ---------- */}
-      <footer className="mt-auto border-t border-line bg-background/60 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-xs text-faint">
-          <p className="flex items-center gap-1.5">
-            <ScanSearch className="h-3.5 w-3.5" />
-            تشخیص دوگانه · کروماکی زنده · خروجی WebP شفاف
-          </p>
-          <p className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-violet-ink" />
-            هیچ فایلی به سرور ارسال نمی‌شود
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
