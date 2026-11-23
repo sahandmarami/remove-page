@@ -101,6 +101,84 @@ export function downloadBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+export type SaveResult = "saved" | "shared" | "cancelled" | "failed";
+
+/**
+ * Mobile-first, fault-tolerant saving.
+ *
+ * On phones the classic `<a download>` click can be silently swallowed
+ * (especially after an `await` breaks the user-gesture chain). The Web Share
+ * sheet is the reliable path there, so on touch devices it is tried first.
+ * Desktop keeps the anchor download, with a data-URL as the last resort.
+ */
+export async function saveBlob(blob: Blob, filename: string): Promise<SaveResult> {
+  // 1) Web Share on touch devices — visible system sheet, most reliable on mobile
+  const coarse =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer: coarse)").matches;
+  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+  if (coarse && typeof navigator.share === "function" && nav.canShare) {
+    try {
+      const file = new File([blob], filename, {
+        type: blob.type || "application/octet-stream",
+      });
+      if (nav.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return "shared";
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return "cancelled"; // user closed the share sheet
+      }
+      // any other failure → fall through to the anchor download
+    }
+  }
+
+  // 2) object-URL anchor download
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 8000);
+    return "saved";
+  } catch {
+    // 3) last resort: data URL
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return "saved";
+    } catch {
+      return "failed";
+    }
+  }
+}
+
+/** canvas → blob → saveBlob, with a concise toast on failure. */
+export async function saveCanvas(
+  canvas: HTMLCanvasElement,
+  filename: string,
+  type = "image/png",
+  quality = 1
+): Promise<SaveResult> {
+  const { blob } = await canvasToBlob(canvas, type, quality);
+  return saveBlob(blob, filename);
+}
+
 export function makeThumb(canvas: HTMLCanvasElement, size = 120): string {
   const scale = Math.min(1, size / Math.max(canvas.width, canvas.height));
   const t = createCanvas(canvas.width * scale, canvas.height * scale);
@@ -229,14 +307,14 @@ export async function zipFramesToBlob(
   return zip.generateAsync({ type: "blob", compression: "STORE" });
 }
 
-/** Pack frames into a ZIP and trigger a browser download. */
+/** Pack frames into a ZIP and trigger a browser save (share sheet on mobile). */
 export async function downloadFramesZip(
   frames: Array<{ name: string; canvas: HTMLCanvasElement }>,
   zipName = "spriteforge-frames",
   quality = 0.92
-): Promise<void> {
+): Promise<SaveResult> {
   const blob = await zipFramesToBlob(frames, quality);
-  downloadBlob(blob, `${zipName}.zip`);
+  return saveBlob(blob, `${zipName}.zip`);
 }
 
 export async function copyTextToClipboard(text: string): Promise<boolean> {

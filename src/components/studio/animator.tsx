@@ -1,46 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Check,
-  Clapperboard,
-  Copy,
-  Download,
-  FileJson,
-  Grid3X3,
-  Package,
-  Pause,
-  PencilLine,
-  Play,
-  SkipBack,
-  SkipForward,
-  Trash2,
-} from "lucide-react";
+import { Download, FileJson, Grid3X3, Image as ImageIcon, Pause, Play, SkipBack, SkipForward, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { useFrameStore } from "@/lib/store";
-import {
-  buildSpriteSheet,
-  canvasToBlob,
-  copyTextToClipboard,
-  downloadBlob,
-  extFor,
-  fitInto,
-  type SpriteSheetMeta,
-} from "@/lib/cv/frame-utils";
+import { buildSpriteSheet, canvasToBlob, extFor, fitInto, saveBlob, type SpriteSheetMeta } from "@/lib/cv/frame-utils";
 import { cn } from "@/lib/utils";
-
-type BgMode = "checkerDark" | "checkerLight" | "white" | "black";
-type SheetBg = "transparent" | "white" | "black" | "slate";
-
-const BG_OPTIONS: Array<{ id: BgMode; label: string; className: string }> = [
-  { id: "checkerDark", label: "شطرنجی تیره", className: "checker-dark" },
-  { id: "checkerLight", label: "شطرنجی روشن", className: "checker-light" },
-  { id: "white", label: "سفید", className: "bg-white-solid" },
-  { id: "black", label: "سیاه", className: "bg-black-solid" },
-];
 
 export function Animator() {
   const frames = useFrameStore((s) => s.frames);
@@ -48,27 +14,21 @@ export function Animator() {
   const setSelected = useFrameStore((s) => s.setSelected);
   const removeFrame = useFrameStore((s) => s.removeFrame);
   const clearAll = useFrameStore((s) => s.clearAll);
-  const renameAll = useFrameStore((s) => s.renameAll);
 
   const flipbookRef = useRef<HTMLCanvasElement>(null);
-  const sheetRef = useRef<HTMLCanvasElement>(null);
-
   const [playing, setPlaying] = useState(false);
   const [fps, setFps] = useState(10);
-  const [bgMode, setBgMode] = useState<BgMode>("checkerDark");
-
-  const [columns, setColumns] = useState(4);
-  const [spacing, setSpacing] = useState(4);
-  const [sheetBg, setSheetBg] = useState<SheetBg>("transparent");
   const [sheetMeta, setSheetMeta] = useState<SpriteSheetMeta | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const [quality, setQuality] = useState(0.92);
-  const [pattern, setPattern] = useState("sprite_{i}");
-  const [zipping, setZipping] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const currentIdx = frames.findIndex((f) => f.id === selectedFrameId);
   const displayIdx = currentIdx >= 0 ? currentIdx : 0;
+
+  // auto grid: square-ish sheet
+  const columns = useMemo(
+    () => Math.min(8, Math.max(1, Math.ceil(Math.sqrt(frames.length || 1)))),
+    [frames.length]
+  );
 
   // ---------- flipbook ----------
   const drawFlipbook = useCallback(
@@ -109,9 +69,9 @@ export function Animator() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, fps, frames, drawFlipbook, setSelected]);
 
-  // pause when the last frame is removed / frames emptied
   useEffect(() => {
     if (frames.length < 2) setPlaying(false);
   }, [frames.length]);
@@ -123,434 +83,208 @@ export function Animator() {
     setSelected(frames[next].id);
   };
 
-  // ---------- sprite sheet ----------
+  // ---------- sprite sheet meta ----------
   useEffect(() => {
     if (frames.length === 0) {
       setSheetMeta(null);
       return;
     }
-    const { canvas, meta } = buildSpriteSheet(
+    const { meta } = buildSpriteSheet(
       frames.map((f) => ({ canvas: f.canvas, name: f.name })),
-      { columns, spacing, background: sheetBg }
+      { columns, spacing: 2, background: "transparent" }
     );
-    const target = sheetRef.current;
-    if (target) {
-      const scale = Math.min(1, 720 / canvas.width, 460 / canvas.height);
-      target.width = Math.max(1, Math.round(canvas.width * scale));
-      target.height = Math.max(1, Math.round(canvas.height * scale));
-      const ctx = target.getContext("2d")!;
-      ctx.clearRect(0, 0, target.width, target.height);
-      ctx.drawImage(canvas, 0, 0, target.width, target.height);
-    }
     setSheetMeta(meta);
-  }, [frames, columns, spacing, sheetBg]);
+  }, [frames, columns]);
 
-  const downloadSheet = useCallback(
-    async (type: "image/png" | "image/webp") => {
-      if (frames.length === 0) return;
+  // ---------- exports ----------
+  const downloadSheet = useCallback(async () => {
+    if (frames.length === 0) return;
+    setBusy(true);
+    try {
       const { canvas } = buildSpriteSheet(
         frames.map((f) => ({ canvas: f.canvas, name: f.name })),
-        { columns, spacing, background: sheetBg }
+        { columns, spacing: 2, background: "transparent" }
       );
-      const { blob, actualType } = await canvasToBlob(canvas, type, quality);
-      downloadBlob(blob, `spritesheet-${columns}col.${extFor(actualType)}`);
-      toast.success("اسپرایت‌شیت دانلود شد", { description: `${canvas.width}×${canvas.height}` });
-    },
-    [columns, frames, quality, sheetBg, spacing]
-  );
-
-  const copyMeta = useCallback(async () => {
-    if (!sheetMeta) return;
-    const ok = await copyTextToClipboard(JSON.stringify(sheetMeta, null, 2));
-    if (ok) {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-      toast.success("متادیتای JSON کپی شد", { description: "سازگار با Unity و Godot" });
-    } else {
-      toast.error("کپی به کلیپ‌بورد ناموفق بود");
+      const res = await saveBlob(await canvasToBlob(canvas, "image/png", 1).then((r) => r.blob), "spritesheet.png");
+      if (res === "failed") toast.error("دانلود ناموفق بود — دوباره بزنید");
+      else if (res !== "cancelled") toast.success("اسپرایت‌شیت ذخیره شد");
+    } catch {
+      toast.error("خروجی ناموفق بود");
+    } finally {
+      setBusy(false);
     }
-  }, [sheetMeta]);
-
-  // ---------- export ----------
-  const downloadOne = useCallback(
-    async (id: string) => {
-      const frame = frames.find((f) => f.id === id);
-      if (!frame) return;
-      const { blob, actualType } = await canvasToBlob(frame.canvas, "image/webp", quality);
-      downloadBlob(blob, `${frame.name}.${extFor(actualType)}`);
-    },
-    [frames, quality]
-  );
+  }, [columns, frames]);
 
   const downloadZip = useCallback(async () => {
     if (frames.length === 0) return;
-    setZipping(true);
+    setBusy(true);
     try {
       const zip = new JSZip();
       const folder = zip.folder("spriteforge-frames") ?? zip;
-      let webpOk = 0;
       for (const frame of frames) {
-        const { blob, actualType } = await canvasToBlob(frame.canvas, "image/webp", quality);
-        if (actualType.includes("webp")) webpOk += 1;
+        const { blob, actualType } = await canvasToBlob(frame.canvas, "image/webp", 0.92);
         folder.file(`${frame.name}.${extFor(actualType)}`, blob);
       }
-      if (sheetMeta) {
-        folder.file("spritesheet.json", JSON.stringify(sheetMeta, null, 2));
-      }
+      if (sheetMeta) folder.file("spritesheet.json", JSON.stringify(sheetMeta, null, 2));
       const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
-      downloadBlob(blob, `spriteforge-frames-${frames.length}.zip`);
-      toast.success("فایل ZIP دانلود شد", {
-        description: `${frames.length} فریم${webpOk === frames.length ? " — همگی WebP شفاف" : ""}`,
-      });
+      const res = await saveBlob(blob, `spriteforge-${frames.length}-frames.zip`);
+      if (res === "failed") toast.error("دانلود ZIP ناموفق بود — دوباره بزنید");
+      else if (res !== "cancelled") toast.success("ZIP ذخیره شد");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "ساخت ZIP ناموفق بود");
     } finally {
-      setZipping(false);
+      setBusy(false);
     }
-  }, [frames, quality, sheetMeta]);
+  }, [frames, sheetMeta]);
 
-  const previewName = useMemo(() => {
-    const digits = Math.max(3, String(frames.length || 1).length);
-    const sample = pattern.includes("{i}")
-      ? pattern.replace(/\{i\}/g, "1".padStart(digits, "0"))
-      : `${pattern}_001`;
-    return sample;
-  }, [frames.length, pattern]);
+  const copyJson = useCallback(async () => {
+    if (!sheetMeta) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(sheetMeta, null, 2));
+      toast.success("JSON کپی شد");
+    } catch {
+      toast.error("کپی ناموفق بود");
+    }
+  }, [sheetMeta]);
 
   if (frames.length === 0) {
     return (
-      <div className="hero-dots flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-3xl panel-glass p-10 text-center">
-        <div className="relative">
-          <div className="pointer-events-none absolute -top-16 right-1/2 h-40 w-40 translate-x-1/2 rounded-full bg-fuchsia-tint blur-2xl" />
-          <div className="hero-icon-glow relative mx-auto grid h-20 w-20 place-items-center rounded-2xl metallic-gradient">
-            <Clapperboard className="h-9 w-9 text-white" />
-          </div>
+      <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-3xl border border-line panel-glass p-10 text-center">
+        <div className="relative grid h-20 w-20 place-items-center rounded-2xl metallic-gradient shadow-xl">
+          <ImageIcon className="h-9 w-9 text-white" />
         </div>
-        <p className="text-lg font-black metallic-text">هنوز فریمی وجود ندارد</p>
-        <p className="max-w-md text-sm leading-6 text-soft">
-          از تب «حذف پس‌زمینه» تصویر را پاک کنید، از «برش‌زن شیت» کادرها را برش بزنید یا از
-          «ویدیو و گیف» فریم بگیرید تا فلپ‌بوک، اسپرایت‌شیت و خروجی WebP شفاف فعال شود.
-        </p>
+        <p className="text-lg font-black text-foreground">هنوز فریمی نیست</p>
+        <p className="text-xs text-faint">از ابزارهای بالا فریم اضافه کنید</p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
-      {/* ---------- flipbook + frames ---------- */}
-      <div className="flex flex-col gap-3">
-        <div className={cn("overflow-hidden rounded-xl border border-line", BG_OPTIONS.find((b) => b.id === bgMode)?.className)}>
-          <canvas
-            ref={flipbookRef}
-            width={720}
-            height={440}
-            className="mx-auto block h-auto max-h-[440px] w-full"
+    <div className="flex flex-col gap-3 pb-2">
+      {/* flipbook */}
+      <div className="overflow-hidden rounded-2xl border border-line checker-dark">
+        <canvas ref={flipbookRef} width={720} height={440} className="mx-auto block h-auto max-h-[440px] w-full" />
+      </div>
+
+      {/* playback */}
+      <div className="flex items-center gap-2 rounded-2xl border border-line panel-glass p-2.5">
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          aria-label="قبلی"
+          className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-chip text-foreground"
+        >
+          <SkipBack className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setPlaying((p) => !p)}
+          aria-label={playing ? "توقف" : "پخش"}
+          className="grid h-10 w-10 place-items-center rounded-xl metallic-gradient text-white shadow-md"
+        >
+          {playing ? <Pause className="h-4.5 w-4.5" /> : <Play className="h-4.5 w-4.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => step(1)}
+          aria-label="بعدی"
+          className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-chip text-foreground"
+        >
+          <SkipForward className="h-4 w-4" />
+        </button>
+        <div className="mr-2 flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 text-xs font-bold text-soft tabular-nums">{fps} FPS</span>
+          <input
+            type="range"
+            min={1}
+            max={30}
+            step={1}
+            value={fps}
+            dir="ltr"
+            onChange={(e) => setFps(Number(e.target.value))}
+            className="h-1.5 min-w-0 flex-1 accent-violet-500"
+            aria-label="سرعت"
           />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl panel-glass p-3">
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            onClick={() => step(-1)}
-            className="border border-line bg-chip"
-            aria-label="فریم قبلی"
-          >
-            <SkipBack className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            onClick={() => setPlaying((p) => !p)}
-            disabled={frames.length < 2}
-            className="metallic-gradient text-white font-bold glow-purple hover:brightness-110"
-          >
-            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {playing ? "توقف" : "پخش پیوسته"}
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            onClick={() => step(1)}
-            className="border border-line bg-chip"
-            aria-label="فریم بعدی"
-          >
-            <SkipForward className="h-4 w-4" />
-          </Button>
-          <div className="flex min-w-[180px] flex-1 items-center gap-2">
-            <span className="shrink-0 text-xs text-soft">سرعت</span>
-            <Slider
-              value={[fps]}
-              min={1}
-              max={30}
-              step={1}
-              onValueChange={(v) => setFps(v[0])}
-              className="flex-1"
-            />
-            <span className="w-14 shrink-0 text-center font-mono text-xs text-cyan-ink" dir="ltr">
-              {fps} FPS
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {BG_OPTIONS.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => setBgMode(b.id)}
-                title={b.label}
-                aria-label={b.label}
-                className={cn(
-                  "h-7 w-7 rounded-md border transition-all",
-                  b.className,
-                  bgMode === b.id
-                    ? "border-cyan-line-strong neon-ring scale-110"
-                    : "border-line-strong hover:border-violet-line-strong"
-                )}
-              />
-            ))}
-          </div>
-          <span className="font-mono text-xs text-soft" dir="ltr">
-            {displayIdx + 1} / {frames.length}
-          </span>
-        </div>
-
-        {/* frames strip */}
-        <div className="rounded-2xl panel-glass p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <PencilLine className="h-4 w-4 text-violet-ink" />
-              فریم‌ها ({frames.length})
-            </h3>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                clearAll();
-                toast.info("همه فریم‌ها پاک شدند");
-              }}
-              className="text-soft hover:text-rose-ink"
-            >
-              <Trash2 className="h-4 w-4" />
-              پاک‌کردن همه
-            </Button>
-          </div>
-          <div className="grid max-h-64 grid-cols-[repeat(auto-fill,minmax(108px,1fr))] gap-2 overflow-y-auto scroll-slim p-1">
-            {frames.map((f, i) => (
-              <div
-                key={f.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelected(f.id)}
-                onKeyDown={(e) => e.key === "Enter" && setSelected(f.id)}
-                className={cn(
-                  "group relative cursor-pointer rounded-lg border p-1.5 transition-all",
-                  selectedFrameId === f.id
-                    ? "border-cyan-line-strong bg-cyan-tint neon-ring"
-                    : "border-line bg-chip hover:border-violet-line-strong"
-                )}
-              >
-                <img
-                  src={f.thumb}
-                  alt={`فریم ${f.name}`}
-                  className="mx-auto h-16 w-full rounded object-contain checker-dark"
-                />
-                <p className="mt-1 truncate text-center font-mono text-xs text-soft" dir="ltr" title={f.name}>
-                  {f.name}
-                </p>
-                <p className="text-center font-mono text-xs text-faint" dir="ltr">
-                  {f.w}×{f.h}
-                </p>
-                <div className="absolute inset-x-1 top-1 flex justify-between opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    type="button"
-                    aria-label="دانلود فریم"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void downloadOne(f.id);
-                    }}
-                    className="rounded bg-surface p-1 text-cyan-ink hover:text-cyan-ink"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="حذف فریم"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFrame(f.id);
-                    }}
-                    className="rounded bg-surface p-1 text-rose-ink hover:text-rose-ink"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <span className="absolute -top-1.5 right-1 rounded bg-violet-600 px-1 font-mono text-xs text-white" dir="ltr">
-                  {i + 1}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* ---------- right panels ---------- */}
-      <div className="flex flex-col gap-3">
-        {/* sprite sheet */}
-        <section className="rounded-2xl panel-glass p-4 space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <Grid3X3 className="h-4 w-4 text-violet-ink" />
-            سازنده اسپرایت‌شیت مشبک
-          </h3>
-          <div className="rounded-lg border border-line checker-dark p-2">
-            <canvas ref={sheetRef} className="mx-auto block h-auto max-h-[200px] w-auto max-w-full" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs text-soft">
-              <span>تعداد ستون‌ها</span>
-              <span className="text-cyan-ink">{columns}</span>
-            </div>
-            <Slider value={[columns]} min={1} max={16} step={1} onValueChange={(v) => setColumns(v[0])} className="mt-1.5" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs text-soft">
-              <span>فاصله بین سلول‌ها</span>
-              <span className="text-cyan-ink">{spacing}px</span>
-            </div>
-            <Slider value={[spacing]} min={0} max={24} step={1} onValueChange={(v) => setSpacing(v[0])} className="mt-1.5" />
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                ["transparent", "شفاف"],
-                ["white", "سفید"],
-                ["black", "سیاه"],
-                ["slate", "اسلیت"],
-              ] as Array<[SheetBg, string]>
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setSheetBg(id)}
-                className={cn(
-                  "rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
-                  sheetBg === id
-                    ? "border-cyan-line-strong bg-cyan-tint text-cyan-ink"
-                    : "border-line bg-chip text-soft hover:border-violet-line-strong"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {sheetMeta && (
-            <p className="font-mono text-xs text-faint" dir="ltr">
-              {sheetMeta.sheet.columns}×{sheetMeta.sheet.rows} — {sheetMeta.sheet.width}×{sheetMeta.sheet.height}
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void downloadSheet("image/png")}
-              className="border border-line bg-chip"
-            >
-              <Download className="h-4 w-4" />
-              PNG
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void downloadSheet("image/webp")}
-              className="border border-cyan-line bg-cyan-tint text-cyan-ink hover:border-cyan-line-strong"
-            >
-              <Download className="h-4 w-4" />
-              WebP
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void copyMeta()}
-              className="col-span-2 border border-violet-line bg-violet-tint text-violet-ink hover:border-violet-line-strong"
-            >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              کپی متادیتا JSON (Unity / Godot)
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                if (!sheetMeta) return;
-                const blob = new Blob([JSON.stringify(sheetMeta, null, 2)], { type: "application/json" });
-                downloadBlob(blob, "spritesheet.json");
-                toast.success("فایل متادیتا دانلود شد");
-              }}
-              className="col-span-2 border border-line bg-chip"
-            >
-              <FileJson className="h-4 w-4" />
-              دانلود فایل متادیتا JSON
-            </Button>
-          </div>
-        </section>
-
-        {/* export */}
-        <section className="rounded-2xl panel-glass p-4 space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <Package className="h-4 w-4 text-cyan-ink" />
-            خروجی و دانلود
-          </h3>
-          <div>
-            <div className="flex justify-between text-xs text-soft">
-              <span>کیفیت WebP</span>
-              <span className="text-cyan-ink">{Math.round(quality * 100)}٪</span>
-            </div>
-            <Slider value={[quality]} min={0.5} max={1} step={0.02} onValueChange={(v) => setQuality(v[0])} className="mt-1.5" />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="rename-pattern" className="flex items-center gap-1.5 text-xs text-soft">
-              <FileJson className="h-3.5 w-3.5" />
-              الگوی تغییر نام دسته‌ای
-            </label>
-            <input
-              id="rename-pattern"
-              value={pattern}
-              onChange={(e) => setPattern(e.target.value)}
-              dir="ltr"
-              className="w-full rounded-lg border border-line bg-surface px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong"
-            />
-            <div className="flex items-center justify-between">
-              <p className="font-mono text-xs text-faint" dir="ltr">
-                {previewName}.webp
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  renameAll(pattern);
-                  toast.success("نام همه فریم‌ها بازنویسی شد");
-                }}
-                className="text-xs text-cyan-ink hover:text-cyan-ink"
-              >
-                <Check className="h-3.5 w-3.5" />
-                اعمال نام‌ها
-              </Button>
-            </div>
-          </div>
-          <Button
-            type="button"
-            disabled={zipping}
-            onClick={() => void downloadZip()}
-            className="w-full metallic-gradient text-white font-bold glow-purple hover:brightness-110"
+      {/* frames strip */}
+      <div className="flex gap-2 overflow-x-auto rounded-2xl border border-line bg-surface p-2">
+        {frames.map((f, i) => (
+          <div
+            key={f.id}
+            className={cn(
+              "relative shrink-0 cursor-pointer overflow-hidden rounded-lg border transition-all",
+              i === displayIdx ? "border-violet-line-strong neon-ring" : "border-line hover:border-violet-line"
+            )}
+            onClick={() => {
+              setPlaying(false);
+              setSelected(f.id);
+            }}
           >
-            {zipping ? <Download className="h-4 w-4 animate-bounce" /> : <Package className="h-4 w-4" />}
-            دانلود ZIP همه فریم‌ها ({frames.length})
-          </Button>
-          <p className="text-xs leading-4 text-faint">
-            همه فایل‌ها با آلفای شفاف به WebP تبدیل و در مرورگر شما زیپ می‌شوند.
-          </p>
-        </section>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={f.thumb} alt={f.name} className="checker-dark h-16 w-16 object-contain" />
+            <span className="absolute right-0.5 top-0.5 rounded bg-black/60 px-1 font-mono text-[9px] text-white" dir="ltr">
+              {i + 1}
+            </span>
+            <button
+              type="button"
+              aria-label="حذف"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeFrame(f.id);
+              }}
+              className="absolute left-0.5 top-0.5 rounded bg-black/60 p-0.5 text-white/90 hover:text-rose-ink"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* exports */}
+      <div className="sticky-safe">
+        <div className="float-bar rounded-2xl border border-line panel-glass p-2.5">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void downloadZip()}
+              disabled={busy}
+              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl metallic-gradient text-sm font-black text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+            >
+              <Download className="h-4.5 w-4.5" />
+              دانلود ZIP
+            </button>
+            <button
+              type="button"
+              onClick={() => void downloadSheet()}
+              disabled={busy}
+              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-cyan-line bg-cyan-tint px-4 text-sm font-black text-cyan-ink transition-all hover:border-cyan-line-strong active:scale-[0.98] disabled:opacity-50"
+            >
+              <Grid3X3 className="h-4.5 w-4.5" />
+              <span className="hidden sm:inline">اسپرایت‌شیت</span>
+              <span className="sm:hidden">شیت</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void copyJson()}
+              disabled={!sheetMeta}
+              aria-label="کپی JSON"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-chip text-soft transition-colors hover:border-violet-line hover:text-foreground disabled:opacity-40"
+            >
+              <FileJson className="h-4.5 w-4.5" />
+            </button>
+          </div>
+          {frames.length > 2 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="mt-2 w-full rounded-lg py-1.5 text-[11px] font-bold text-faint transition-colors hover:text-rose-ink"
+            >
+              پاک‌کردن همه
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

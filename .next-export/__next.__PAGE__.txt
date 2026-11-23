@@ -1,9 +1,9 @@
 1:"$Sreact.fragment"
-2:I[47257,["/spriteforge/_next/static/chunks/33d3f2c0cda968c7.js"],"ClientPageRoot"]
-3:I[52683,["/spriteforge/_next/static/chunks/a53cdae8708d6a10.js","/spriteforge/_next/static/chunks/1104eb3445058576.js","/spriteforge/_next/static/chunks/e95f4b90596f9f8a.js","/spriteforge/_next/static/chunks/49aab1d798e1bda5.js","/spriteforge/_next/static/chunks/20c151fea45318b9.js"],"default"]
-6:I[97367,["/spriteforge/_next/static/chunks/33d3f2c0cda968c7.js"],"OutletBoundary"]
+2:I[47257,["/spriteforge/_next/static/chunks/2f236954d6a65e12.js"],"ClientPageRoot"]
+3:I[52683,["/spriteforge/_next/static/chunks/a53cdae8708d6a10.js","/spriteforge/_next/static/chunks/1104eb3445058576.js","/spriteforge/_next/static/chunks/ce144ea88b0cf3b8.js","/spriteforge/_next/static/chunks/07b61617c7fe30f7.js","/spriteforge/_next/static/chunks/242b53795006d3f7.js"],"default"]
+6:I[97367,["/spriteforge/_next/static/chunks/2f236954d6a65e12.js"],"OutletBoundary"]
 7:"$Sreact.suspense"
-0:{"buildId":"2r36Rn56_rx60o5A7B-Vl","rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","script","script-0",{"src":"/spriteforge/_next/static/chunks/e95f4b90596f9f8a.js","async":true}],["$","script","script-1",{"src":"/spriteforge/_next/static/chunks/49aab1d798e1bda5.js","async":true}],["$","script","script-2",{"src":"/spriteforge/_next/static/chunks/20c151fea45318b9.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"loading":null,"isPartial":false}
+0:{"buildId":"dvVdLNXghyZ7n7Zq63-rB","rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","script","script-0",{"src":"/spriteforge/_next/static/chunks/ce144ea88b0cf3b8.js","async":true}],["$","script","script-1",{"src":"/spriteforge/_next/static/chunks/07b61617c7fe30f7.js","async":true}],["$","script","script-2",{"src":"/spriteforge/_next/static/chunks/242b53795006d3f7.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"loading":null,"isPartial":false}
 4:{}
 5:"$0:rsc:props:children:0:props:serverProvidedParams:params"
 8:null
