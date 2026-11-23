@@ -1,48 +1,39 @@
 /**
- * Frame utilities: cropping, WebP export, sprite-sheet composition,
- * engine metadata (Unity / Godot), batch renaming and downloads.
+ * Frame utilities: cropping, lossless export, sprite-sheet composition,
+ * batch renaming and downloads.
  */
 
 import type { Box } from "./detect-boxes";
-
-export interface SpriteSheetMeta {
-  app: string;
-  sheet: {
-    width: number;
-    height: number;
-    columns: number;
-    rows: number;
-    cellWidth: number;
-    cellHeight: number;
-    spacing: number;
-    frameCount: number;
-  };
-  frames: Array<{
-    index: number;
-    name: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  }>;
-  unity: {
-    spriteSheet: { name: string; width: number; height: number };
-    grid: [number, number];
-    sprites: Array<{ name: string; rect: [number, number, number, number] }>;
-  };
-  godot: {
-    hframes: number;
-    vframes: number;
-    frame: number;
-    frameSize: [number, number];
-  };
-}
 
 export function createCanvas(w: number, h: number): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(w));
   c.height = Math.max(1, Math.round(h));
   return c;
+}
+
+/**
+ * High-quality upscale for very small sources so exports never look
+ * blurrier than the original. Below `minSide` the image is doubled with
+ * two-step smooth interpolation (much cleaner than a single big jump).
+ */
+export function enhanceSmallCanvas(
+  src: HTMLCanvasElement,
+  minSide = 620
+): HTMLCanvasElement {
+  const maxSide = Math.max(src.width, src.height);
+  if (maxSide <= 0 || maxSide >= minSide) return src;
+  let cur = src;
+  // upscale in ×2 steps until the long side reaches minSide
+  while (Math.max(cur.width, cur.height) < minSide && Math.max(cur.width, cur.height) < 2400) {
+    const next = createCanvas(cur.width * 2, cur.height * 2);
+    const ctx = next.getContext("2d")!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  return cur;
 }
 
 export function cropToCanvas(
@@ -101,40 +92,14 @@ export function downloadBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-export type SaveResult = "saved" | "shared" | "cancelled" | "failed";
+export type SaveResult = "saved" | "cancelled" | "failed";
 
 /**
- * Mobile-first, fault-tolerant saving.
- *
- * On phones the classic `<a download>` click can be silently swallowed
- * (especially after an `await` breaks the user-gesture chain). The Web Share
- * sheet is the reliable path there, so on touch devices it is tried first.
- * Desktop keeps the anchor download, with a data-URL as the last resort.
+ * Direct file download — no share sheet, no dialogs.
+ * Writes the blob straight to the browser's download pipeline via an
+ * object-URL anchor. Works on Android Chrome, iOS Safari and desktop.
  */
 export async function saveBlob(blob: Blob, filename: string): Promise<SaveResult> {
-  // 1) Web Share on touch devices — visible system sheet, most reliable on mobile
-  const coarse =
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(pointer: coarse)").matches;
-  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
-  if (coarse && typeof navigator.share === "function" && nav.canShare) {
-    try {
-      const file = new File([blob], filename, {
-        type: blob.type || "application/octet-stream",
-      });
-      if (nav.canShare({ files: [file] })) {
-        await navigator.share({ files: [file] });
-        return "shared";
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        return "cancelled"; // user closed the share sheet
-      }
-      // any other failure → fall through to the anchor download
-    }
-  }
-
-  // 2) object-URL anchor download
   try {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -147,7 +112,7 @@ export async function saveBlob(blob: Blob, filename: string): Promise<SaveResult
     window.setTimeout(() => URL.revokeObjectURL(url), 8000);
     return "saved";
   } catch {
-    // 3) last resort: data URL
+    // last resort: data URL
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -216,7 +181,7 @@ export interface SheetBuildOptions {
 export function buildSpriteSheet(
   frames: Array<{ canvas: HTMLCanvasElement; name: string }>,
   options: SheetBuildOptions
-): { canvas: HTMLCanvasElement; meta: SpriteSheetMeta } {
+): { canvas: HTMLCanvasElement } {
   const columns = Math.max(1, Math.min(32, Math.round(options.columns)));
   const spacing = Math.max(0, Math.round(options.spacing));
   const count = frames.length;
@@ -240,7 +205,6 @@ export function buildSpriteSheet(
     ctx.fillRect(0, 0, width, height);
   }
 
-  const frameEntries: SpriteSheetMeta["frames"] = [];
   frames.forEach((f, i) => {
     const col = i % columns;
     const row = Math.floor(i / columns);
@@ -250,68 +214,31 @@ export function buildSpriteSheet(
     const dx = ox + Math.floor((cellW - f.canvas.width) / 2);
     const dy = oy + Math.floor((cellH - f.canvas.height) / 2);
     ctx.drawImage(f.canvas, dx, dy);
-    frameEntries.push({
-      index: i,
-      name: f.name,
-      x: dx,
-      y: dy,
-      w: f.canvas.width,
-      h: f.canvas.height,
-    });
   });
 
-  const meta: SpriteSheetMeta = {
-    app: "SpriteForge",
-    sheet: {
-      width,
-      height,
-      columns,
-      rows,
-      cellWidth: cellW,
-      cellHeight: cellH,
-      spacing,
-      frameCount: count,
-    },
-    frames: frameEntries,
-    unity: {
-      spriteSheet: { name: "spritesheet", width, height },
-      grid: [cellW, cellH],
-      sprites: frameEntries.map((f) => ({
-        name: f.name,
-        rect: [f.x, f.y, f.w, f.h],
-      })),
-    },
-    godot: {
-      hframes: columns,
-      vframes: rows,
-      frame: 0,
-      frameSize: [cellW, cellH],
-    },
-  };
-
-  return { canvas, meta };
+  return { canvas };
 }
 
-/** Pack frames into a ZIP blob (in-browser, nothing is sent to any server). */
+/** Pack frames into a ZIP blob — lossless PNG frames, in-browser. */
 export async function zipFramesToBlob(
   frames: Array<{ name: string; canvas: HTMLCanvasElement }>,
-  quality = 0.92
+  quality = 1
 ): Promise<Blob> {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
-  const folder = zip.folder("spriteforge-frames") ?? zip;
+  const folder = zip.folder("remove-page-frames") ?? zip;
   for (const frame of frames) {
-    const { blob, actualType } = await canvasToBlob(frame.canvas, "image/webp", quality);
+    const { blob, actualType } = await canvasToBlob(frame.canvas, "image/png", quality);
     folder.file(`${frame.name}.${extFor(actualType)}`, blob);
   }
   return zip.generateAsync({ type: "blob", compression: "STORE" });
 }
 
-/** Pack frames into a ZIP and trigger a browser save (share sheet on mobile). */
+/** Pack frames into a ZIP and trigger a browser save. */
 export async function downloadFramesZip(
   frames: Array<{ name: string; canvas: HTMLCanvasElement }>,
-  zipName = "spriteforge-frames",
-  quality = 0.92
+  zipName = "remove-page-frames",
+  quality = 1
 ): Promise<SaveResult> {
   const blob = await zipFramesToBlob(frames, quality);
   return saveBlob(blob, `${zipName}.zip`);

@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileJson, Grid3X3, Image as ImageIcon, Pause, Play, SkipBack, SkipForward, Trash2 } from "lucide-react";
+import { Download, Grid3X3, Image as ImageIcon, Pause, Play, SkipBack, SkipForward, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import JSZip from "jszip";
 import { useFrameStore } from "@/lib/store";
-import { buildSpriteSheet, canvasToBlob, extFor, fitInto, saveBlob, type SpriteSheetMeta } from "@/lib/cv/frame-utils";
+import { buildSpriteSheet, canvasToBlob, downloadFramesZip, fitInto, saveBlob } from "@/lib/cv/frame-utils";
 import { cn } from "@/lib/utils";
 
 export function Animator() {
@@ -18,7 +17,6 @@ export function Animator() {
   const flipbookRef = useRef<HTMLCanvasElement>(null);
   const [playing, setPlaying] = useState(false);
   const [fps, setFps] = useState(10);
-  const [sheetMeta, setSheetMeta] = useState<SpriteSheetMeta | null>(null);
   const [busy, setBusy] = useState(false);
 
   const currentIdx = frames.findIndex((f) => f.id === selectedFrameId);
@@ -83,20 +81,22 @@ export function Animator() {
     setSelected(frames[next].id);
   };
 
-  // ---------- sprite sheet meta ----------
-  useEffect(() => {
-    if (frames.length === 0) {
-      setSheetMeta(null);
-      return;
-    }
-    const { meta } = buildSpriteSheet(
-      frames.map((f) => ({ canvas: f.canvas, name: f.name })),
-      { columns, spacing: 2, background: "transparent" }
-    );
-    setSheetMeta(meta);
-  }, [frames, columns]);
-
   // ---------- exports ----------
+  const downloadOne = useCallback(
+    async (frameId: string) => {
+      const frame = frames.find((f) => f.id === frameId);
+      if (!frame) return;
+      try {
+        const { blob } = await canvasToBlob(frame.canvas, "image/png", 1);
+        const res = await saveBlob(blob, `${frame.name}.png`);
+        if (res === "failed") toast.error("دانلود ناموفق بود");
+      } catch {
+        toast.error("دانلود ناموفق بود");
+      }
+    },
+    [frames]
+  );
+
   const downloadSheet = useCallback(async () => {
     if (frames.length === 0) return;
     setBusy(true);
@@ -105,9 +105,9 @@ export function Animator() {
         frames.map((f) => ({ canvas: f.canvas, name: f.name })),
         { columns, spacing: 2, background: "transparent" }
       );
-      const res = await saveBlob(await canvasToBlob(canvas, "image/png", 1).then((r) => r.blob), "spritesheet.png");
+      const { blob } = await canvasToBlob(canvas, "image/png", 1);
+      const res = await saveBlob(blob, "spritesheet.png");
       if (res === "failed") toast.error("دانلود ناموفق بود — دوباره بزنید");
-      else if (res !== "cancelled") toast.success("اسپرایت‌شیت ذخیره شد");
     } catch {
       toast.error("خروجی ناموفق بود");
     } finally {
@@ -119,33 +119,17 @@ export function Animator() {
     if (frames.length === 0) return;
     setBusy(true);
     try {
-      const zip = new JSZip();
-      const folder = zip.folder("spriteforge-frames") ?? zip;
-      for (const frame of frames) {
-        const { blob, actualType } = await canvasToBlob(frame.canvas, "image/webp", 0.92);
-        folder.file(`${frame.name}.${extFor(actualType)}`, blob);
-      }
-      if (sheetMeta) folder.file("spritesheet.json", JSON.stringify(sheetMeta, null, 2));
-      const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
-      const res = await saveBlob(blob, `spriteforge-${frames.length}-frames.zip`);
+      const res = await downloadFramesZip(
+        frames.map((f) => ({ name: f.name, canvas: f.canvas })),
+        "remove-page-frames"
+      );
       if (res === "failed") toast.error("دانلود ZIP ناموفق بود — دوباره بزنید");
-      else if (res !== "cancelled") toast.success("ZIP ذخیره شد");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "ساخت ZIP ناموفق بود");
     } finally {
       setBusy(false);
     }
-  }, [frames, sheetMeta]);
-
-  const copyJson = useCallback(async () => {
-    if (!sheetMeta) return;
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(sheetMeta, null, 2));
-      toast.success("JSON کپی شد");
-    } catch {
-      toast.error("کپی ناموفق بود");
-    }
-  }, [sheetMeta]);
+  }, [frames]);
 
   if (frames.length === 0) {
     return (
@@ -214,7 +198,7 @@ export function Animator() {
           <div
             key={f.id}
             className={cn(
-              "relative shrink-0 cursor-pointer overflow-hidden rounded-lg border transition-all",
+              "group relative shrink-0 cursor-pointer overflow-hidden rounded-lg border transition-all",
               i === displayIdx ? "border-violet-line-strong neon-ring" : "border-line hover:border-violet-line"
             )}
             onClick={() => {
@@ -227,17 +211,30 @@ export function Animator() {
             <span className="absolute right-0.5 top-0.5 rounded bg-black/60 px-1 font-mono text-[9px] text-white" dir="ltr">
               {i + 1}
             </span>
-            <button
-              type="button"
-              aria-label="حذف"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeFrame(f.id);
-              }}
-              className="absolute left-0.5 top-0.5 rounded bg-black/60 p-0.5 text-white/90 hover:text-rose-ink"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+            <div className="absolute inset-x-0 bottom-0 flex justify-center gap-0.5 bg-black/50 py-0.5">
+              <button
+                type="button"
+                aria-label="دانلود این فریم"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void downloadOne(f.id);
+                }}
+                className="rounded p-1 text-white/90 hover:text-cyan-ink"
+              >
+                <Download className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                aria-label="حذف"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFrame(f.id);
+                }}
+                className="rounded p-1 text-white/90 hover:text-rose-ink"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -248,31 +245,22 @@ export function Animator() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => void downloadZip()}
+              onClick={() => void downloadSheet()}
               disabled={busy}
               className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl metallic-gradient text-sm font-black text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
             >
-              <Download className="h-4.5 w-4.5" />
-              دانلود ZIP
+              <Grid3X3 className="h-4.5 w-4.5" />
+              اسپرایت‌شیت
             </button>
             <button
               type="button"
-              onClick={() => void downloadSheet()}
+              onClick={() => void downloadZip()}
               disabled={busy}
               className="flex h-11 items-center justify-center gap-2 rounded-xl border border-cyan-line bg-cyan-tint px-4 text-sm font-black text-cyan-ink transition-all hover:border-cyan-line-strong active:scale-[0.98] disabled:opacity-50"
             >
-              <Grid3X3 className="h-4.5 w-4.5" />
-              <span className="hidden sm:inline">اسپرایت‌شیت</span>
-              <span className="sm:hidden">شیت</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => void copyJson()}
-              disabled={!sheetMeta}
-              aria-label="کپی JSON"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-chip text-soft transition-colors hover:border-violet-line hover:text-foreground disabled:opacity-40"
-            >
-              <FileJson className="h-4.5 w-4.5" />
+              <Download className="h-4.5 w-4.5" />
+              <span className="hidden sm:inline">همه به‌صورت ZIP</span>
+              <span className="sm:hidden">ZIP</span>
             </button>
           </div>
           {frames.length > 2 && (

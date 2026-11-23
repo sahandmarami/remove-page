@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Clapperboard, Eraser, Film, Scissors } from "lucide-react";
+import { Clapperboard, Eraser, Film, LayoutTemplate, Scissors } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BgRemove } from "@/components/studio/bg-remove";
 import { SheetCutter } from "@/components/studio/sheet-cutter";
 import { VideoStudio } from "@/components/studio/video-studio";
 import { Animator } from "@/components/studio/animator";
+import { ThumbnailMaker } from "@/components/studio/thumbnail";
 import { useFrameStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ const TABS = [
   { id: "sheet", icon: Scissors, label: "برش شیت" },
   { id: "video", icon: Film, label: "ویدیو و گیف" },
   { id: "anim", icon: Clapperboard, label: "انیماتور" },
+  { id: "thumb", icon: LayoutTemplate, label: "تامنل" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -42,13 +44,18 @@ export default function Home() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`${BP}/icon-192.png`}
-              alt="اسپرایت‌فورج"
+              alt="Remove Page"
               className="h-9 w-9 rounded-[10px] object-cover sm:h-10 sm:w-10"
               width={40}
               height={40}
             />
           </div>
-          <h1 className="text-base font-black metallic-text sm:text-lg">اسپرایت‌فورج</h1>
+          <h1
+            className="brand-font metallic-text select-none text-lg font-extrabold tracking-wide sm:text-xl"
+            dir="ltr"
+          >
+            Remove&nbsp;Page
+          </h1>
 
           <div className="mr-auto flex items-center gap-2">
             {frameCount > 0 && (
@@ -64,7 +71,7 @@ export default function Home() {
       {/* main */}
       <main className="mx-auto w-full max-w-5xl flex-1 px-3 pb-6 pt-3 sm:px-4 sm:pt-4">
         {/* segmented tool switcher */}
-        <nav className="mb-3 grid grid-cols-4 gap-1.5 rounded-2xl border border-line bg-surface p-1.5 sm:gap-2 sm:p-2">
+        <nav className="mb-3 grid grid-cols-5 gap-1 rounded-2xl border border-line bg-surface p-1.5 sm:gap-2 sm:p-2">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -72,7 +79,7 @@ export default function Home() {
               onClick={() => setTab(t.id)}
               aria-pressed={tab === t.id}
               className={cn(
-                "flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-bold transition-all sm:flex-row sm:justify-center sm:gap-2 sm:text-sm",
+                "flex min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-bold transition-all sm:flex-row sm:justify-center sm:gap-2 sm:text-sm",
                 tab === t.id
                   ? "metallic-gradient text-white shadow-md"
                   : "text-soft hover:bg-chip hover:text-foreground active:scale-95"
@@ -88,6 +95,7 @@ export default function Home() {
         {tab === "sheet" && <SheetCutter />}
         {tab === "video" && <VideoStudio />}
         {tab === "anim" && <Animator />}
+        {tab === "thumb" && <ThumbnailMaker />}
       </main>
     </div>
   );

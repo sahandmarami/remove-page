@@ -9,10 +9,10 @@ import { removeBackground, DEFAULT_BG_OPTIONS } from "@/lib/cv/bg-removal";
 import {
   canvasToBlob,
   cropToCanvas,
-  downloadFramesZip,
-  extFor,
+  enhanceSmallCanvas,
   frameName,
   makeThumb,
+  saveBlob,
 } from "@/lib/cv/frame-utils";
 import { loadImageToCanvas } from "@/lib/cv/video-extract";
 import type { RGB } from "@/lib/cv/color-utils";
@@ -84,12 +84,13 @@ export function SheetCutter() {
   };
 
   const processCrop = useCallback((box: Box): HTMLCanvasElement => {
-    const original = cropToCanvas(source!.canvas, box);
+    const original = enhanceSmallCanvas(cropToCanvas(source!.canvas, box));
     const img = original
       .getContext("2d", { willReadFrequently: true })!
       .getImageData(0, 0, original.width, original.height);
     const result = removeBackground(img, {
       ...DEFAULT_BG_OPTIONS,
+      feather: 0.5,
       bgColorHint: bgHintRef.current,
     });
     const out = document.createElement("canvas");
@@ -113,9 +114,7 @@ export function SheetCutter() {
         await new Promise((r) => setTimeout(r, 0));
       }
       addFrames(inputs);
-      const res = await downloadFramesZip(inputs, "spriteforge-cut", 0.95);
-      if (res === "failed") toast.error("دانلود ZIP ناموفق بود — دوباره بزنید");
-      else if (res !== "cancelled") toast.success(`${inputs.length} برش ذخیره شد`);
+      toast.success(`${inputs.length} برش به انیماتور اضافه شد`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "برش ناموفق بود");
     } finally {
@@ -129,9 +128,8 @@ export function SheetCutter() {
       try {
         const processed = processCrop(box);
         const name = frameName("sprite_{i}", index, boxes.length);
-        const { blob, actualType } = await canvasToBlob(processed, "image/webp", 0.95);
-        const { saveBlob } = await import("@/lib/cv/frame-utils");
-        const res = await saveBlob(blob, `${name}.${extFor(actualType)}`);
+        const { blob } = await canvasToBlob(processed, "image/png", 1);
+        const res = await saveBlob(blob, `${name}.png`);
         if (res === "failed") toast.error("دانلود ناموفق بود");
       } catch {
         toast.error("دانلود ناموفق بود");
@@ -320,7 +318,7 @@ export function SheetCutter() {
             ) : (
               <Scissors className="h-4.5 w-4.5" />
             )}
-            برش و دانلود ZIP
+            برش و افزودن به انیماتور
             {boxes.length > 0 && (
               <span className="rounded-md bg-black/25 px-1.5 py-0.5 text-xs tabular-nums">
                 {boxes.length}

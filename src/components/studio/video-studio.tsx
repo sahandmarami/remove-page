@@ -11,7 +11,7 @@ import {
   waitFor,
   waitForPresentedFrame,
 } from "@/lib/cv/video-extract";
-import { cloneCanvas, downloadFramesZip, fitInto, frameName } from "@/lib/cv/frame-utils";
+import { cloneCanvas, enhanceSmallCanvas, fitInto, frameName } from "@/lib/cv/frame-utils";
 import { useFrameStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -111,7 +111,7 @@ export function VideoStudio() {
     wctx.imageSmoothingQuality = "high";
     wctx.drawImage(raw, 0, 0, workW, workH);
     const img = wctx.getImageData(0, 0, work.width, work.height);
-    const keyed = autoRemoveBackground(img, { feather: 1.0, removeHoles: true });
+    const keyed = autoRemoveBackground(img, { feather: 0.5, removeHoles: true });
     wctx.putImageData(keyed.image, 0, 0);
 
     const ctx = canvas.getContext("2d")!;
@@ -275,11 +275,12 @@ export function VideoStudio() {
     setExtracting(true);
 
     const applyTo = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
-      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const keyed = autoRemoveBackground(img, { feather: 1.0, removeHoles: true });
+      const up = enhanceSmallCanvas(canvas);
+      const ctx = up.getContext("2d", { willReadFrequently: true })!;
+      const img = ctx.getImageData(0, 0, up.width, up.height);
+      const keyed = autoRemoveBackground(img, { feather: 0.5, removeHoles: true });
       ctx.putImageData(keyed.image, 0, 0);
-      return canvas;
+      return up;
     };
 
     try {
@@ -335,9 +336,7 @@ export function VideoStudio() {
         return;
       }
       addFrames(inputs);
-      const res = await downloadFramesZip(inputs, "spriteforge-frames", 0.95);
-      if (res === "failed") toast.error("دانلود ZIP ناموفق بود — دوباره بزنید");
-      else if (res !== "cancelled") toast.success(`${inputs.length} فریم ذخیره شد`);
+      toast.success(`${inputs.length} فریم به انیماتور اضافه شد`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "استخراج ناموفق بود");
     } finally {
@@ -535,7 +534,7 @@ export function VideoStudio() {
                 ) : (
                   <Film className="h-4.5 w-4.5" />
                 )}
-                استخراج و دانلود ZIP
+                استخراج فریم‌ها
               </button>
             </div>
           </div>

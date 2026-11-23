@@ -1,2 +1,2 @@
-:HL["/spriteforge/_next/static/chunks/e4b81023989fe89f.css","style"]
-0:{"buildId":"dvVdLNXghyZ7n7Zq63-rB","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":true},"staleTime":300}
+:HL["/spriteforge/_next/static/chunks/b0dc484618860448.css","style"]
+0:{"buildId":"x61kIzACxeJwi8_CWl8a8","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":true},"staleTime":300}

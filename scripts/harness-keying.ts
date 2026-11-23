@@ -40,7 +40,7 @@ function decodeGif(buf: ArrayBuffer): { width: number; height: number; frames: R
   let saved: Uint8ClampedArray | null = null;
   const frames: RawFrame[] = [];
   for (const rf of raw) {
-    if (!rf?.dims?.patch) continue;
+    if (!rf || !rf.dims || !rf.patch) continue;
     const { top, left, width: pw, height: ph } = rf.dims;
     const disposal = rf.disposalType ?? 0;
     if (pendingDisposal === 2 && pendingRect) {
@@ -93,13 +93,15 @@ async function main() {
   console.log("gif", width, height, "frames:", frames.length);
   if (frames.length === 0) throw new Error("no frames decoded");
 
-  for (const [label, feather, defringe] of [
-    ["current", 1.0, 0.85],   // what the site ships today
+  for (const [label, opts] of [
+    ["current", { feather: 1.0, defringe: 0.85 }], // what the site ships today
+    ["tight", { feather: 0.4, defringe: 0.5 }],
+    ["crisp", { feather: 0.25, defringe: 0.35 }],
   ] as const) {
     const f0 = frames[0];
     const img = new ImageDataPoly(new Uint8ClampedArray(f0.data), width, height);
     const t0 = Date.now();
-    const res = autoRemoveBackground(img as any, { feather, removeHoles: true, defringe } as any);
+    const res = autoRemoveBackground(img as any, { removeHoles: true, ...opts } as any);
     console.log(label, "tolerance:", (res as any).autoTolerance, "removed:", (res.removedRatio * 100).toFixed(1) + "%", Date.now() - t0 + "ms");
     await savePng({ data: res.image.data, width, height }, `${OUT}/${label}-alpha.png`);
     await savePng({ data: res.image.data, width, height }, `${OUT}/${label}-gray.png`, [160, 160, 160]);

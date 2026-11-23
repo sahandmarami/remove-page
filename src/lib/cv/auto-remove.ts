@@ -254,8 +254,8 @@ export function autoRemoveBackground(
   const args: Partial<BgRemovalOptions> = {
     tolerance,
     edgeBarrier: 26,
-    feather: opts.feather ?? 1.0,
-    defringe: 0.85,
+    feather: opts.feather ?? 0.5,
+    defringe: 0.6,
     removeHoles: opts.removeHoles ?? true,
     holeMaxPercent: 10,
     bgColorHint: hint,

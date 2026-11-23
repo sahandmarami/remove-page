@@ -1,6 +1,6 @@
-/* SpriteForge minimal service worker — makes the app installable as a PWA.
+/* Remove Page minimal service worker — makes the app installable as a PWA.
    Strategy: network-first with offline fallback to cached shell. */
-const CACHE = "spriteforge-v2";
+const CACHE = "remove-page-v3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

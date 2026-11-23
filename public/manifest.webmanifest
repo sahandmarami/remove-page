@@ -1,8 +1,8 @@
 {
-  "name": "اسپرایت‌فورج | SpriteForge",
-  "short_name": "SpriteForge",
-  "description": "استودیوی حرفه‌ای برش شیت تصاویر، حذف پس‌زمینه و استخراج فریم ویدیو و گیف — کاملاً داخل مرورگر",
-  "id": "spriteforge",
+  "name": "Remove Page",
+  "short_name": "Remove Page",
+  "description": "حذف پس‌زمینه تصویر و گیف، استخراج فریم، اسپرایت‌شیت و ساخت تامنل — کاملاً داخل مرورگر",
+  "id": "remove-page",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

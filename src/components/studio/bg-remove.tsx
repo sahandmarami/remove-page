@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { Download, Eraser, ImageUp, Loader2, Package, X } from "lucide-react";
 import { toast } from "sonner";
 import { autoRemoveBackground } from "@/lib/cv/auto-remove";
-import { canvasToBlob, saveBlob } from "@/lib/cv/frame-utils";
+import { canvasToBlob, enhanceSmallCanvas, saveBlob } from "@/lib/cv/frame-utils";
 import { loadImageToCanvas } from "@/lib/cv/video-extract";
 import { useFrameStore } from "@/lib/store";
 
@@ -49,10 +49,12 @@ export function BgRemove() {
         c.drawImage(canvas, 0, 0, small.width, small.height);
         work = small;
       }
+      // small sources get upscaled 2× so the export is never lower quality
+      work = enhanceSmallCanvas(work);
 
       const ctx = work.getContext("2d", { willReadFrequently: true })!;
       const img = ctx.getImageData(0, 0, work.width, work.height);
-      const res = autoRemoveBackground(img, { feather: 1.0, removeHoles: true });
+      const res = autoRemoveBackground(img, { feather: 0.5, removeHoles: true });
 
       const out = document.createElement("canvas");
       out.width = work.width;
