@@ -1,8 +1,8 @@
-# اسپرایت‌فورج — SpriteForge
+# Remove Page
 
 استودیوی کامل برش شیت تصاویر، حذف پس‌زمینه و استخراج فریم از ویدیو/گیف — کاملاً داخل مرورگر، بدون آپلود هیچ فایلی به سرور.
 
-**لینک نسخه‌ی آنلاین:** https://sahandmarami.github.io/spriteforge/
+**لینک نسخه‌ی آنلاین:** https://sahandmarami.github.io/remove-page/
 
 ## امکانات
 
@@ -37,7 +37,7 @@ bun run build:static # خروجی استاتیک GitHub Pages در .next-export
 ```
 
 ## نشر روی GitHub Pages
-پوشش `main` → اکشن `.github/workflows/deploy.yml` به‌صورت خودکار بیلد استاتیک (`STATIC_EXPORT=1`، `basePath=/spriteforge`) را اجرا و در Pages منتشر می‌کند. مسیرهای `/api/*` فقط در حالت توسعه در دسترس‌اند و در هاست استاتیک، تشخیص AI خودکار به موتور آفلاین مرورگر سوئیچ می‌شود.
+پوشش `main` → اکشن `.github/workflows/deploy.yml` به‌صورت خودکار بیلد استاتیک (`STATIC_EXPORT=1`، `basePath=/remove-page`) را اجرا و در Pages منتشر می‌کند. مسیرهای `/api/*` فقط در حالت توسعه در دسترس‌اند و در هاست استاتیک، تشخیص AI خودکار به موتور آفلاین مرورگر سوئیچ می‌شود.
 
 ## فناوری‌ها
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Zustand · gifuct-js · gifenc · JSZip · lucide-react — همه پردازش‌ها سمت کلاینت و هیچ فایلی به سرور ارسال نمی‌شود.

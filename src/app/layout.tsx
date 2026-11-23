@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SwRegister } from "@/components/sw-register";
 
-/** static-export basePath (e.g. "/spriteforge" on GitHub Pages) — empty in dev */
+/** static-export basePath (e.g. "/remove-page" on GitHub Pages) — empty in dev */
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata: Metadata = {
