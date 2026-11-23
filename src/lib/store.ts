@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { makeThumb } from "@/lib/cv/frame-utils";
 
-export type FrameSource = "sheet" | "video";
+export type FrameSource = "sheet" | "video" | "remove";
 
 export interface FrameItem {
   id: string;

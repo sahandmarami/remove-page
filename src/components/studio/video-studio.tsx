@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ChevronDown,
   CircleStop,
-  Droplets,
   Eye,
   FileVideo,
   Film,
@@ -13,9 +13,11 @@ import {
   Pause,
   Pipette,
   Play,
+  SlidersHorizontal,
   Sparkles,
   TestTube2,
   Upload,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,13 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { applyChromaKey, DEFAULT_CHROMA } from "@/lib/cv/chroma";
+import { autoRemoveBackground } from "@/lib/cv/auto-remove";
 import { decodeGif, type DecodedFrame } from "@/lib/cv/gif";
 import {
   extractFramesFromVideo,
@@ -34,7 +42,7 @@ import {
 } from "@/lib/cv/video-extract";
 import { cloneCanvas, downloadFramesZip, fitInto, frameName } from "@/lib/cv/frame-utils";
 import { encodeTestGif, recordTestVideo } from "@/lib/cv/test-generators";
-import { hexToRgb, rgbToHex } from "@/lib/cv/color-utils";
+import { hexToRgb, rgbToHex, type RGB } from "@/lib/cv/color-utils";
 import { useFrameStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +72,12 @@ export function VideoStudio() {
   const [despill, setDespill] = useState(DEFAULT_CHROMA.despill);
   const [eyedropper, setEyedropper] = useState(false);
 
+  // fully-automatic background removal (default ON)
+  const [autoKey, setAutoKey] = useState(true);
+  const [sensitivity, setSensitivity] = useState(100);
+  const [lockedBg, setLockedBg] = useState<RGB | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [gifIdx, setGifIdx] = useState(0);
   const [gifPlaying, setGifPlaying] = useState(false);
@@ -78,14 +92,16 @@ export function VideoStudio() {
   const gifIdxRef = useRef(0);
   const cancelRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const chromaRef = useRef({ enabled: chromaEnabled, hex: chromaHex, similarity, smoothness, despill });
+  const chromaRef = useRef({ enabled: chromaEnabled, hex: chromaHex, similarity, smoothness, despill, autoKey, sensitivity, lockedBg });
   const modeRef = useRef<Mode>("idle");
   const gifFramesRef = useRef<DecodedFrame[]>([]);
+  const playingRef = useRef(false);
 
-  chromaRef.current = { enabled: chromaEnabled, hex: chromaHex, similarity, smoothness, despill };
+  chromaRef.current = { enabled: chromaEnabled, hex: chromaHex, similarity, smoothness, despill, autoKey, sensitivity, lockedBg };
   gifIdxRef.current = gifIdx;
   modeRef.current = mode;
   gifFramesRef.current = gifFrames;
+  playingRef.current = videoPlaying || gifPlaying;
 
   // ---------- preview rendering ----------
   const drawPreview = useCallback(() => {
@@ -135,22 +151,47 @@ export function VideoStudio() {
       work = document.createElement("canvas");
       chromaWorkRef.current = work;
     }
-    if (work.width !== raw.width || work.height !== raw.height) {
-      work.width = raw.width;
-      work.height = raw.height;
+
+    // auto key: process a downscaled copy for a smooth realtime preview
+    // (extraction always runs at full resolution)
+    let workW = raw.width;
+    let workH = raw.height;
+    if (chroma.autoKey) {
+      const maxSide = playingRef.current ? 400 : 560;
+      const s = Math.min(1, maxSide / Math.max(raw.width, raw.height));
+      workW = Math.max(1, Math.round(raw.width * s));
+      workH = Math.max(1, Math.round(raw.height * s));
+    }
+    if (work.width !== workW || work.height !== workH) {
+      work.width = workW;
+      work.height = workH;
     }
     const wctx = work.getContext("2d", { willReadFrequently: true })!;
     // copy the raw frame into the work canvas first, then key it out in place
     wctx.clearRect(0, 0, work.width, work.height);
-    wctx.drawImage(raw, 0, 0);
+    if (workW !== raw.width || workH !== raw.height) {
+      wctx.imageSmoothingQuality = "high";
+      wctx.drawImage(raw, 0, 0, workW, workH);
+    } else {
+      wctx.drawImage(raw, 0, 0);
+    }
     const img = wctx.getImageData(0, 0, work.width, work.height);
-    applyChromaKey(img, {
-      color: hexToRgb(chroma.hex),
-      similarity: chroma.similarity,
-      smoothness: chroma.smoothness,
-      despill: chroma.despill,
-    });
-    wctx.putImageData(img, 0, 0);
+    if (chroma.autoKey) {
+      // returns a NEW ImageData — must put the result back
+      const keyed = autoRemoveBackground(img, {
+        sensitivity: chroma.sensitivity / 100,
+        bgColorHint: chroma.lockedBg,
+      });
+      wctx.putImageData(keyed.image, 0, 0);
+    } else {
+      applyChromaKey(img, {
+        color: hexToRgb(chroma.hex),
+        similarity: chroma.similarity,
+        smoothness: chroma.smoothness,
+        despill: chroma.despill,
+      });
+      wctx.putImageData(img, 0, 0);
+    }
     ctx.drawImage(work, fit.x, fit.y, fit.w, fit.h);
   }, []);
 
@@ -159,7 +200,7 @@ export function VideoStudio() {
     if ((mode === "video" && !videoPlaying) || (mode === "gif" && !gifPlaying)) {
       drawPreview();
     }
-  }, [chromaEnabled, chromaHex, similarity, smoothness, despill, gifIdx, drawPreview, gifPlaying, mode, videoPlaying]);
+  }, [autoKey, chromaEnabled, chromaHex, similarity, smoothness, despill, sensitivity, lockedBg, gifIdx, drawPreview, gifPlaying, mode, videoPlaying]);
 
   // video playback loop
   useEffect(() => {
@@ -358,9 +399,18 @@ export function VideoStudio() {
         toast.warning("این پیکسل شفاف است — رنگ دیگری انتخاب کنید");
         return;
       }
-      setChromaHex(rgbToHex([d[0], d[1], d[2]]));
+      const hex = rgbToHex([d[0], d[1], d[2]]);
       setEyedropper(false);
-      toast.success(`رنگ کلید: ${rgbToHex([d[0], d[1], d[2]])}`);
+      if (chromaRef.current.autoKey) {
+        // auto mode: lock the detected background color to this sample
+        setLockedBg([d[0], d[1], d[2]]);
+        toast.success(`رنگ پس‌زمینه قفل شد: ${hex}`, {
+          description: "حذف خودکار حالا دقیقاً روی این رنگ انجام می‌شود",
+        });
+      } else {
+        setChromaHex(hex);
+        toast.success(`رنگ کلید: ${hex}`);
+      }
     },
     [eyedropper]
   );
@@ -393,13 +443,22 @@ export function VideoStudio() {
       if (!chroma.enabled) return canvas;
       const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      applyChromaKey(img, {
-        color: hexToRgb(chroma.hex),
-        similarity: chroma.similarity,
-        smoothness: chroma.smoothness,
-        despill: chroma.despill,
-      });
-      ctx.putImageData(img, 0, 0);
+      if (chroma.autoKey) {
+        // full-resolution automatic cut for the exported frames
+        const keyed = autoRemoveBackground(img, {
+          sensitivity: chroma.sensitivity / 100,
+          bgColorHint: chroma.lockedBg,
+        });
+        ctx.putImageData(keyed.image, 0, 0);
+      } else {
+        applyChromaKey(img, {
+          color: hexToRgb(chroma.hex),
+          similarity: chroma.similarity,
+          smoothness: chroma.smoothness,
+          despill: chroma.despill,
+        });
+        ctx.putImageData(img, 0, 0);
+      }
       return canvas;
     };
 
@@ -452,12 +511,16 @@ export function VideoStudio() {
         toast.success(`${n} فایل استخراج‌شده دانلود شد`, {
           id: "vid-zip",
           description: chroma.enabled
-            ? "ZIP با فریم‌های WebP شفاف کروماکی‌شده — در انیماتور هم آماده است"
+            ? "ZIP با فریم‌های WebP شفاف بدون پس‌زمینه — در انیماتور هم آماده است"
             : "در تب انیماتور هم آماده است",
         });
       } else {
         toast.success(`${n} فریم به انیماتور اضافه شد`, {
-          description: chroma.enabled ? "با کروماکی اعمال‌شده" : "بدون کروماکی",
+          description: chroma.enabled
+            ? autoKey
+              ? "با حذف خودکار پس‌زمینه"
+              : "با کروماکی اعمال‌شده"
+            : "بدون حذف پس‌زمینه",
         });
       }
     } catch (err) {
@@ -466,7 +529,7 @@ export function VideoStudio() {
       setProgress(null);
       cancelRef.current = false;
     }
-  }, [addFrames, autoZip, count, gifFrames, mode, prefix, targetIndices, videoMeta]);
+  }, [addFrames, autoKey, autoZip, count, gifFrames, mode, prefix, targetIndices, videoMeta]);
 
   const totalFrames =
     mode === "gif"
@@ -579,8 +642,8 @@ export function VideoStudio() {
               ویدیو یا گیف را به فریم‌های شفاف تبدیل کنید
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-soft">
-              فایل را اینجا رها کنید یا بدون آپلود، با یک کلیک منبع تستی بسازید — کروماکی زنده
-              روی پیش‌نمایش اعمال می‌شود و خروجی ZIP شفاف دانلود می‌شود.
+              فایل را اینجا رها کنید یا با یک کلیک منبع تستی بسازید — پس‌زمینه‌ی هر فریم
+              به‌صورت خودکار حذف می‌شود و خروجی ZIP شفاف دانلود می‌شود.
             </p>
 
             <div className="mt-7 grid gap-3 text-right sm:grid-cols-3">
@@ -750,86 +813,187 @@ export function VideoStudio() {
           )}
         </section>
 
-        {/* chroma key */}
+        {/* background removal: auto by default, manual chroma optional */}
         <section className="rounded-xl panel-glass p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <Droplets className="h-4 w-4 text-emerald-ink" />
-              کروماکی زنده
+              <Wand2 className="h-4 w-4 text-emerald-ink" />
+              حذف پس‌زمینه
             </h3>
-            <Switch checked={chromaEnabled} onCheckedChange={setChromaEnabled} aria-label="کروماکی" />
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-[11px] font-bold",
+                  autoKey
+                    ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-ink"
+                    : "border-line bg-chip text-faint"
+                )}
+              >
+                {autoKey ? "خودکار" : "دستی"}
+              </span>
+              <Switch checked={autoKey} onCheckedChange={setAutoKey} aria-label="حذف خودکار پس‌زمینه" />
+            </div>
           </div>
 
-          <div className={cn("space-y-3", !chromaEnabled && "opacity-45 pointer-events-none")}>
-            <div className="flex items-center gap-2">
-              <label
-                className="relative h-9 w-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-line-strong"
-                style={{ backgroundColor: chromaHex }}
-                aria-label="انتخاب رنگ کلید"
-              >
-                <input
-                  type="color"
-                  value={chromaHex}
-                  onChange={(e) => setChromaHex(e.target.value)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          {autoKey ? (
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-xs text-soft">
+                  <span>حساسیت حذف</span>
+                  <span className="text-cyan-ink">{sensitivity}٪</span>
+                </div>
+                <Slider
+                  value={[sensitivity]}
+                  min={50}
+                  max={170}
+                  step={5}
+                  onValueChange={(v) => setSensitivity(v[0])}
+                  className="mt-1.5"
                 />
-              </label>
+                <p className="mt-1 text-xs leading-4 text-faint">
+                  رنگ پس‌زمینه از حاشیه‌ی خودِ فریم تشخیص داده می‌شود — پرده سبز لازم نیست.
+                </p>
+              </div>
+
+              {lockedBg && (
+                <div className="flex items-center justify-between rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2">
+                  <span className="flex items-center gap-2 text-xs font-bold text-emerald-ink">
+                    <span
+                      className="h-3.5 w-3.5 rounded-full border border-line-strong"
+                      style={{ backgroundColor: rgbToHex(lockedBg) }}
+                    />
+                    رنگ پس‌زمینه قفل شده
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLockedBg(null)}
+                    className="text-xs text-soft hover:text-rose-ink"
+                  >
+                    آزادسازی
+                  </button>
+                </div>
+              )}
+
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 onClick={() => setEyedropper((v) => !v)}
                 className={cn(
-                  "flex-1 border",
+                  "w-full border",
                   eyedropper
                     ? "border-cyan-line-strong bg-cyan-tint text-cyan-ink neon-ring"
                     : "border-line bg-chip text-soft"
                 )}
               >
                 {eyedropper ? <Eye className="h-4 w-4" /> : <Pipette className="h-4 w-4" />}
-                {eyedropper ? "روی پیش‌نمایش کلیک کنید" : "قطره‌چکان"}
+                {eyedropper ? "روی پیش‌نمایش کلیک کنید" : "قفل رنگ با قطره‌چکان"}
               </Button>
             </div>
-            <div className="flex gap-1.5">
-              {[
-                { label: "پرده سبز", hex: "#00B140" },
-                { label: "پرده آبی", hex: "#0047BB" },
-                { label: "بنفش", hex: "#B026FF" },
-              ].map((p) => (
-                <button
-                  key={p.hex}
-                  type="button"
-                  onClick={() => setChromaHex(p.hex)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-chip px-2 py-1.5 text-xs text-soft hover:border-violet-line-strong"
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <label
+                  className="relative h-9 w-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-line-strong"
+                  style={{ backgroundColor: chromaHex }}
+                  aria-label="انتخاب رنگ کلید"
                 >
-                  <span className="h-3 w-3 rounded-full border border-line-strong" style={{ backgroundColor: p.hex }} />
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-soft">
-                <span>حساسیت کلید</span>
-                <span className="text-cyan-ink">{Math.round(similarity * 100)}٪</span>
+                  <input
+                    type="color"
+                    value={chromaHex}
+                    onChange={(e) => setChromaHex(e.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setEyedropper((v) => !v)}
+                  className={cn(
+                    "flex-1 border",
+                    eyedropper
+                      ? "border-cyan-line-strong bg-cyan-tint text-cyan-ink neon-ring"
+                      : "border-line bg-chip text-soft"
+                  )}
+                >
+                  {eyedropper ? <Eye className="h-4 w-4" /> : <Pipette className="h-4 w-4" />}
+                  {eyedropper ? "روی پیش‌نمایش کلیک کنید" : "قطره‌چکان"}
+                </Button>
               </div>
-              <Slider value={[similarity]} min={0.02} max={0.9} step={0.01} onValueChange={(v) => setSimilarity(v[0])} className="mt-1.5" />
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-soft">
-                <span>نرمی لبه</span>
-                <span className="text-cyan-ink">{Math.round(smoothness * 100)}٪</span>
+              <div className="flex gap-1.5">
+                {[
+                  { label: "پرده سبز", hex: "#00B140" },
+                  { label: "پرده آبی", hex: "#0047BB" },
+                  { label: "بنفش", hex: "#B026FF" },
+                ].map((p) => (
+                  <button
+                    key={p.hex}
+                    type="button"
+                    onClick={() => setChromaHex(p.hex)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-chip px-2 py-1.5 text-xs text-soft hover:border-violet-line-strong"
+                  >
+                    <span className="h-3 w-3 rounded-full border border-line-strong" style={{ backgroundColor: p.hex }} />
+                    {p.label}
+                  </button>
+                ))}
               </div>
-              <Slider value={[smoothness]} min={0.01} max={0.6} step={0.01} onValueChange={(v) => setSmoothness(v[0])} className="mt-1.5" />
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-soft">
-                <span>خنثی‌سازی بازتاب پرده (Despill)</span>
-                <span className="text-cyan-ink">{Math.round(despill * 100)}٪</span>
+              <div>
+                <div className="flex justify-between text-xs text-soft">
+                  <span>حساسیت کلید</span>
+                  <span className="text-cyan-ink">{Math.round(similarity * 100)}٪</span>
+                </div>
+                <Slider value={[similarity]} min={0.02} max={0.9} step={0.01} onValueChange={(v) => setSimilarity(v[0])} className="mt-1.5" />
               </div>
-              <Slider value={[despill]} min={0} max={1} step={0.05} onValueChange={(v) => setDespill(v[0])} className="mt-1.5" />
+              <div>
+                <div className="flex justify-between text-xs text-soft">
+                  <span>نرمی لبه</span>
+                  <span className="text-cyan-ink">{Math.round(smoothness * 100)}٪</span>
+                </div>
+                <Slider value={[smoothness]} min={0.01} max={0.6} step={0.01} onValueChange={(v) => setSmoothness(v[0])} className="mt-1.5" />
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-soft">
+                  <span>خنثی‌سازی بازتاب پرده (Despill)</span>
+                  <span className="text-cyan-ink">{Math.round(despill * 100)}٪</span>
+                </div>
+                <Slider value={[despill]} min={0} max={1} step={0.05} onValueChange={(v) => setDespill(v[0])} className="mt-1.5" />
+              </div>
             </div>
-          </div>
+          )}
         </section>
+
+        {/* collapsed advanced settings */}
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <div className="rounded-xl panel-glass">
+            <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-soft hover:text-foreground">
+              <SlidersHorizontal className="h-4 w-4 text-violet-ink" />
+              تنظیمات پیشرفته
+              <ChevronDown
+                className={cn("mr-auto h-4 w-4 transition-transform", advancedOpen && "rotate-180")}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 border-t border-line px-4 py-4">
+              <div className="flex items-center justify-between rounded-lg border border-line bg-chip px-3 py-2">
+                <Label className="text-xs text-soft">دانلود خودکار ZIP پس از استخراج</Label>
+                <Switch checked={autoZip} onCheckedChange={setAutoZip} aria-label="دانلود خودکار ZIP" />
+              </div>
+              <div>
+                <Label htmlFor="vid-prefix" className="text-xs text-soft">
+                  پیشوند نام فایل‌ها
+                </Label>
+                <input
+                  id="vid-prefix"
+                  value={prefix}
+                  onChange={(e) => setPrefix(e.target.value)}
+                  dir="ltr"
+                  placeholder="vid"
+                  className="mt-1.5 h-9 w-full rounded-lg border border-line bg-surface px-2.5 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong"
+                />
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
       </div>
       </div>
 
@@ -837,24 +1001,12 @@ export function VideoStudio() {
       {sourceReady && (
       <div className="sticky-safe">
         <div className="float-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line panel-glass px-3 py-2.5 sm:px-4 sm:py-3">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="vid-prefix" className="shrink-0 text-xs text-soft">
-              پیشوند
-            </Label>
-            <input
-              id="vid-prefix"
-              value={prefix}
-              onChange={(e) => setPrefix(e.target.value)}
-              dir="ltr"
-              placeholder="vid"
-              className="h-9 w-20 rounded-lg border border-line bg-surface px-2.5 py-1.5 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong sm:h-auto sm:w-24"
-            />
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-chip px-3 py-1.5 text-xs text-soft hover:border-cyan-line-strong">
-            <Switch checked={autoZip} onCheckedChange={setAutoZip} aria-label="دانلود خودکار ZIP" />
-            <Package className="h-3.5 w-3.5 text-cyan-ink" />
-            دانلود خودکار ZIP
-          </label>
+          {autoZip && !progress && (
+            <span className="hidden items-center gap-1.5 rounded-lg border border-line bg-chip px-2.5 py-1.5 text-xs text-soft sm:flex">
+              <Package className="h-3.5 w-3.5 text-cyan-ink" />
+              خروجی: ZIP شفاف
+            </span>
+          )}
           {progress && (
             <div className="flex min-w-[170px] flex-1 items-center gap-2">
               <Progress value={(progress.current / progress.total) * 100} className="h-2 flex-1" />
@@ -863,7 +1015,7 @@ export function VideoStudio() {
               </span>
             </div>
           )}
-          <div className="mr-auto flex flex-wrap items-center justify-end gap-2">
+          <div className={cn("flex flex-wrap items-center justify-end gap-2", !progress && "mr-auto")}>
             {progress && (
               <Button
                 type="button"

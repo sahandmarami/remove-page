@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Boxes,
+  ChevronDown,
   Cpu,
   Download,
   ImageUp,
@@ -13,6 +14,7 @@ import {
   ScanLine,
   ScanSearch,
   Scissors,
+  SlidersHorizontal,
   Sparkles,
   Trash2,
   WandSparkles,
@@ -25,6 +27,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { BoxCanvas } from "@/components/studio/box-canvas";
 import { MaskEditor } from "@/components/studio/mask-editor";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { detectBoxes, makeBoxId, type Box } from "@/lib/cv/detect-boxes";
 import { removeBackground, DEFAULT_BG_OPTIONS } from "@/lib/cv/bg-removal";
 import { rgbToHex, type RGB } from "@/lib/cv/color-utils";
@@ -52,20 +59,20 @@ interface SourceImage {
 const FEATURES = [
   {
     icon: ScanSearch,
-    title: "تشخیص دوگانه",
-    desc: "Vision AI سروری یا بینایی ماشین کاملاً آفلاین",
+    title: "تشخیص خودکار آیتم‌ها",
+    desc: "بینایی ماشین کاملاً آفلاین روی دستگاه شما",
     cls: "border-violet-line bg-violet-tint text-violet-ink",
   },
   {
     icon: WandSparkles,
-    title: "حذف پس‌زمینه",
-    desc: "فیلودفیل با سد گرادیان Sobel و حذف حفره‌ها",
+    title: "حذف تمیز پس‌زمینه",
+    desc: "ماتینگ لبه‌ی زیرپیکسلی، بدون هاله و بدون لکه",
     cls: "border-cyan-line bg-cyan-tint text-cyan-ink",
   },
   {
     icon: Package,
     title: "برش و دانلود ZIP",
-    desc: "همه برش‌ها یک‌جا، WebP شفاف با لبه دقیق پیکسلی",
+    desc: "همه برش‌ها یک‌جا، WebP شفاف با لبه‌ی دقیق",
     cls: "border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink",
   },
 ] as const;
@@ -131,6 +138,9 @@ export function SheetCutter() {
   const [prefix, setPrefix] = useState("sprite");
   const [autoDownload, setAutoDownload] = useState(true);
   const [cropping, setCropping] = useState(false);
+  const [detAdvOpen, setDetAdvOpen] = useState(false);
+  const [bgAdvOpen, setBgAdvOpen] = useState(false);
+  const [advOpen, setAdvOpen] = useState(false);
   const [maskKey, setMaskKey] = useState(0);
   const [maskState, setMaskState] = useState<{
     original: HTMLCanvasElement;
@@ -656,27 +666,38 @@ export function SheetCutter() {
           </section>
 
           {/* local detection settings */}
-          <section className="rounded-2xl panel-glass p-4 space-y-3">
+          <section className="rounded-2xl panel-glass p-4 space-y-1">
             <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
               <ScanLine className="h-4 w-4 text-violet-ink" />
               حساسیت تشخیص محلی
             </h3>
-            <SliderRow
-              label="آستانه تفکیک رنگ"
-              display={String(detectTolerance)}
-              value={detectTolerance}
-              min={10}
-              max={110}
-              step={2}
-              onChange={setDetectTolerance}
-            />
-            <p className="text-xs text-faint">
-              کاملاً آفلاین روی دستگاه شما اجرا می‌شود.
-            </p>
+            <Collapsible open={detAdvOpen} onOpenChange={setDetAdvOpen}>
+              <CollapsibleTrigger className="flex w-full items-center gap-2 py-2 text-xs font-bold text-soft hover:text-foreground">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                تنظیمات پیشرفته
+                <ChevronDown
+                  className={cn("mr-auto h-3.5 w-3.5 transition-transform", detAdvOpen && "rotate-180")}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-1">
+                <SliderRow
+                  label="آستانه تفکیک رنگ"
+                  display={String(detectTolerance)}
+                  value={detectTolerance}
+                  min={10}
+                  max={110}
+                  step={2}
+                  onChange={setDetectTolerance}
+                />
+                <p className="text-xs text-faint">
+                  کاملاً آفلاین روی دستگاه شما اجرا می‌شود.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
           </section>
 
           {/* background removal engine */}
-          <section className="rounded-2xl panel-glass p-4 space-y-3">
+          <section className="rounded-2xl panel-glass p-4 space-y-1">
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
                 <WandSparkles className="h-4 w-4 text-cyan-ink" />
@@ -685,91 +706,119 @@ export function SheetCutter() {
               <Switch checked={bgEnabled} onCheckedChange={setBgEnabled} aria-label="حذف پس‌زمینه" />
             </div>
 
-            <div className={cn("space-y-3", !bgEnabled && "opacity-45 pointer-events-none")}>
-              <SliderRow
-                label="آستانه حساسیت (Tolerance)"
-                display={String(bgTolerance)}
-                value={bgTolerance}
-                min={8}
-                max={120}
-                step={2}
-                onChange={setBgTolerance}
-              />
-              <SliderRow
-                label="سد گرادیان لبه (Sobel)"
-                display={String(edgeBarrier)}
-                value={edgeBarrier}
-                min={0}
-                max={120}
-                step={2}
-                onChange={setEdgeBarrier}
-              />
-              <SliderRow
-                label="مات‌کردن لبه (Feather)"
-                display={`${feather.toFixed(1)}px`}
-                value={feather}
-                min={0}
-                max={8}
-                step={0.2}
-                onChange={setFeather}
-              />
-              <SliderRow
-                label="خنثی‌سازی هاله (Defringe)"
-                display={`${Math.round(defringe * 100)}٪`}
-                value={defringe}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={setDefringe}
-              />
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-soft">حذف حفره‌های محصور</Label>
-                <Switch checked={removeHoles} onCheckedChange={setRemoveHoles} aria-label="حذف حفره‌ها" />
-              </div>
-              {removeHoles && (
-                <SliderRow
-                  label="سقف مساحت حفره"
-                  display={`${holeCap}٪`}
-                  value={holeCap}
-                  min={1}
-                  max={30}
-                  step={1}
-                  onChange={setHoleCap}
+            <Collapsible open={bgAdvOpen} onOpenChange={setBgAdvOpen} className={cn(!bgEnabled && "pointer-events-none opacity-45")}>
+              <CollapsibleTrigger className="flex w-full items-center gap-2 py-2 text-xs font-bold text-soft hover:text-foreground">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                تنظیمات پیشرفته
+                <ChevronDown
+                  className={cn("mr-auto h-3.5 w-3.5 transition-transform", bgAdvOpen && "rotate-180")}
                 />
-              )}
-            </div>
-            <p className="text-xs text-faint">
-              فیلودفیل از سد Sobel عبور نمی‌کند؛ حفره‌ها تا سقف مساحت حذف می‌شوند تا لباس‌ها سوراخ نشوند.
-            </p>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-1">
+                <SliderRow
+                  label="آستانه حساسیت (Tolerance)"
+                  display={String(bgTolerance)}
+                  value={bgTolerance}
+                  min={8}
+                  max={120}
+                  step={2}
+                  onChange={setBgTolerance}
+                />
+                <SliderRow
+                  label="سد گرادیان لبه (Sobel)"
+                  display={String(edgeBarrier)}
+                  value={edgeBarrier}
+                  min={0}
+                  max={120}
+                  step={2}
+                  onChange={setEdgeBarrier}
+                />
+                <SliderRow
+                  label="مات‌کردن لبه (Feather)"
+                  display={`${feather.toFixed(1)}px`}
+                  value={feather}
+                  min={0}
+                  max={8}
+                  step={0.2}
+                  onChange={setFeather}
+                />
+                <SliderRow
+                  label="خنثی‌سازی هاله (Defringe)"
+                  display={`${Math.round(defringe * 100)}٪`}
+                  value={defringe}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setDefringe}
+                />
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-soft">حذف حفره‌های محصور</Label>
+                  <Switch checked={removeHoles} onCheckedChange={setRemoveHoles} aria-label="حذف حفره‌ها" />
+                </div>
+                {removeHoles && (
+                  <SliderRow
+                    label="سقف مساحت حفره"
+                    display={`${holeCap}٪`}
+                    value={holeCap}
+                    min={1}
+                    max={30}
+                    step={1}
+                    onChange={setHoleCap}
+                  />
+                )}
+                <p className="text-xs text-faint">
+                  فیلودفیل از سد Sobel عبور نمی‌کند؛ حفره‌ها تا سقف مساحت حذف می‌شوند تا لباس‌ها سوراخ نشوند.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
           </section>
+
+          {/* collapsed output settings */}
+          <Collapsible open={advOpen} onOpenChange={setAdvOpen}>
+            <div className="rounded-2xl panel-glass">
+              <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-soft hover:text-foreground">
+                <SlidersHorizontal className="h-4 w-4 text-fuchsia-ink" />
+                تنظیمات خروجی
+                <ChevronDown
+                  className={cn("mr-auto h-4 w-4 transition-transform", advOpen && "rotate-180")}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 border-t border-line px-4 py-4">
+                <div>
+                  <Label htmlFor="crop-prefix" className="text-xs text-soft">
+                    پیشوند نام فایل‌ها
+                  </Label>
+                  <input
+                    id="crop-prefix"
+                    value={prefix}
+                    onChange={(e) => setPrefix(e.target.value)}
+                    dir="ltr"
+                    placeholder="sprite"
+                    className="mt-1.5 h-9 w-full rounded-lg border border-line bg-surface px-2.5 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong"
+                  />
+                  <p className="mt-1 font-mono text-xs text-faint" dir="ltr">
+                    {frameName(`${prefix.trim() || "sprite"}_{i}`, 0, Math.max(1, boxes.length))}.webp
+                  </p>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-line bg-chip px-3 py-2">
+                  <Label className="text-xs text-soft">دانلود خودکار ZIP پس از برش</Label>
+                  <Switch checked={autoDownload} onCheckedChange={setAutoDownload} aria-label="دانلود خودکار ZIP" />
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
         </aside>
       </div>
 
       {/* ---------- sticky bottom action bar: cut + download ---------- */}
       <div className="sticky-safe">
         <div className="float-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line panel-glass px-3 py-2.5 sm:px-4 sm:py-3">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="crop-prefix" className="shrink-0 text-xs text-soft">
-              پیشوند
-            </Label>
-            <input
-              id="crop-prefix"
-              value={prefix}
-              onChange={(e) => setPrefix(e.target.value)}
-              dir="ltr"
-              placeholder="sprite"
-              className="h-9 w-24 rounded-lg border border-line bg-surface px-2.5 py-1.5 font-mono text-sm text-foreground outline-none focus:border-cyan-line-strong sm:h-auto sm:w-28"
-            />
-            <span className="hidden font-mono text-xs text-faint sm:inline" dir="ltr">
-              {frameName(`${prefix.trim() || "sprite"}_{i}`, 0, Math.max(1, boxes.length))}.webp
+          {autoDownload && (
+            <span className="hidden items-center gap-1.5 rounded-lg border border-line bg-chip px-2.5 py-1.5 text-xs text-soft sm:flex">
+              <Package className="h-3.5 w-3.5 text-cyan-ink" />
+              خروجی: ZIP شفاف
             </span>
-          </div>
-
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-chip px-3 py-1.5 text-xs text-soft hover:border-cyan-line-strong">
-            <Switch checked={autoDownload} onCheckedChange={setAutoDownload} aria-label="دانلود خودکار ZIP" />
-            <Package className="h-3.5 w-3.5 text-cyan-ink" />
-            دانلود خودکار ZIP
-          </label>
+          )}
 
           <div className="mr-auto flex flex-wrap items-center justify-end gap-2">
             <Button

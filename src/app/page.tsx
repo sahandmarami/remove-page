@@ -1,7 +1,8 @@
 "use client";
 
-import { Film, Scissors, Clapperboard, Sparkles, Crosshair, Wand2, PackageCheck, Cpu } from "lucide-react";
+import { Film, Scissors, Clapperboard, Sparkles, Eraser } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BgRemove } from "@/components/studio/bg-remove";
 import { SheetCutter } from "@/components/studio/sheet-cutter";
 import { VideoStudio } from "@/components/studio/video-studio";
 import { Animator } from "@/components/studio/animator";
@@ -14,14 +15,26 @@ const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const TABS = [
   {
+    value: "remove",
+    group: "group/tab-remove",
+    icon: Eraser,
+    title: "حذف پس‌زمینه",
+    desc: "خودکار — فقط تصویر را بیندازید",
+    active: "data-[state=active]:border-violet-line bg-surface data-[state=active]:bg-violet-tint/40",
+    iconBox: "metallic-gradient text-white",
+    dot: "bg-violet-400",
+    dotOn: "group-data-[state=active]/tab-remove:opacity-100 group-data-[state=active]/tab-remove:scale-125",
+    glow: "group-data-[state=active]/tab-remove:opacity-100",
+  },
+  {
     value: "sheet",
     group: "group/tab-sheet",
     icon: Scissors,
     title: "برش‌زن شیت تصویر",
-    desc: "تشخیص خودکار آیتم‌ها و حذف پس‌زمینه",
-    active: "data-[state=active]:border-violet-line bg-surface data-[state=active]:bg-violet-tint/40",
-    iconBox: "metallic-gradient text-white",
-    dot: "bg-violet-400",
+    desc: "تشخیص خودکار آیتم‌ها و برش دقیق",
+    active: "data-[state=active]:border-cyan-line bg-surface data-[state=active]:bg-cyan-tint/40",
+    iconBox: "border border-cyan-line bg-cyan-tint text-cyan-ink",
+    dot: "bg-cyan-400",
     dotOn: "group-data-[state=active]/tab-sheet:opacity-100 group-data-[state=active]/tab-sheet:scale-125",
     glow: "group-data-[state=active]/tab-sheet:opacity-100",
   },
@@ -29,11 +42,11 @@ const TABS = [
     value: "video",
     group: "group/tab-video",
     icon: Film,
-    title: "استودیو ویدیو و گیف",
-    desc: "استخراج فریم با کروماکی زنده",
-    active: "data-[state=active]:border-cyan-line bg-surface data-[state=active]:bg-cyan-tint/40",
-    iconBox: "border border-cyan-line bg-cyan-tint text-cyan-ink",
-    dot: "bg-cyan-400",
+    title: "ویدیو و گیف",
+    desc: "استخراج فریم شفاف با تشخیص خودکار",
+    active: "data-[state=active]:border-fuchsia-line bg-surface data-[state=active]:bg-fuchsia-tint/40",
+    iconBox: "border border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink",
+    dot: "bg-fuchsia-400",
     dotOn: "group-data-[state=active]/tab-video:opacity-100 group-data-[state=active]/tab-video:scale-125",
     glow: "group-data-[state=active]/tab-video:opacity-100",
   },
@@ -43,19 +56,12 @@ const TABS = [
     icon: Clapperboard,
     title: "انیماتور و خروجی",
     desc: "فلپ‌بوک، اسپرایت‌شیت و ZIP شفاف",
-    active: "data-[state=active]:border-fuchsia-line bg-surface data-[state=active]:bg-fuchsia-tint/40",
-    iconBox: "border border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink",
-    dot: "bg-fuchsia-400",
+    active: "data-[state=active]:border-emerald-line bg-surface data-[state=active]:bg-emerald-tint/40",
+    iconBox: "border border-emerald-line bg-emerald-tint text-emerald-ink",
+    dot: "bg-emerald-400",
     dotOn: "group-data-[state=active]/tab-anim:opacity-100 group-data-[state=active]/tab-anim:scale-125",
     glow: "group-data-[state=active]/tab-anim:opacity-100",
   },
-] as const;
-
-const HERO_CHIPS = [
-  { icon: Crosshair, label: "برش پیکسلی دقیق", cls: "border-violet-line bg-violet-tint text-violet-ink" },
-  { icon: Wand2, label: "حذف هوشمند پس‌زمینه", cls: "border-cyan-line bg-cyan-tint text-cyan-ink" },
-  { icon: Cpu, label: "موتور بینایی ماشین", cls: "border-fuchsia-line bg-fuchsia-tint text-fuchsia-ink" },
-  { icon: PackageCheck, label: "خروجی ZIP شفاف", cls: "border-emerald-line bg-emerald-tint text-emerald-ink" },
 ] as const;
 
 export default function Home() {
@@ -87,7 +93,7 @@ export default function Home() {
           <div className="min-w-0">
             <h1 className="text-base font-black leading-6 metallic-text sm:text-lg">اسپرایت‌فورج</h1>
             <p className="hidden truncate text-xs text-faint sm:block">
-              برش شیت، حذف پس‌زمینه و استخراج فریم — همه‌چیز داخل مرورگر
+              حذف پس‌زمینه، برش شیت و استخراج فریم — همه‌چیز داخل مرورگر
             </p>
           </div>
 
@@ -103,49 +109,35 @@ export default function Home() {
 
       {/* ---------- main ---------- */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 pb-6 pt-3 sm:px-4 sm:pt-5">
-        {/* ---------- graphical hero strip ---------- */}
+        {/* ---------- compact remove-focused hero band ---------- */}
         <section className="hero-band relative mb-4 overflow-hidden rounded-3xl border border-line sm:mb-6">
           <div className="hero-grid pointer-events-none absolute inset-0" />
-          <div className="relative flex items-center gap-3 px-4 py-4 sm:gap-5 sm:px-7 sm:py-6">
+          <div className="relative flex items-center gap-3 px-4 py-4 sm:gap-5 sm:px-7 sm:py-5">
             <div className="hero-icon-float shrink-0">
               <img
                 src={`${BP}/icon-192.png`}
                 alt=""
                 aria-hidden
-                className="h-16 w-16 rounded-2xl sm:h-24 sm:w-24"
-                width={96}
-                height={96}
+                className="h-14 w-14 rounded-2xl sm:h-20 sm:w-20"
+                width={80}
+                height={80}
               />
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-black leading-7 metallic-text sm:text-2xl sm:leading-9">
-                استودیوی برش و اسپرایت، داخل مرورگر شما
+                پس‌زمینه را خودکار حذف کن — تمیز و دقیق
               </h2>
               <p className="mt-1 line-clamp-2 text-xs leading-5 text-soft sm:text-sm sm:leading-6">
-                با موتور بینایی ماشین، آیتم‌های شیت را دقیق پیدا کن، پس‌زمینه را تمیز جدا کن و
-                اسپرایت‌شیت یا فریم‌های شفاف بساز.
+                تصویر یا گیف را بگذارید؛ رنگ پس‌زمینه خودکار تشخیص داده می‌شود، لبه‌ها
+                مات و بدون هاله جدا می‌شوند و خروجی شفاف همان‌جا دانلود می‌شود.
               </p>
-              <div className="mt-2.5 flex flex-wrap gap-1.5 sm:mt-3.5 sm:gap-2">
-                {HERO_CHIPS.map((c) => (
-                  <span
-                    key={c.label}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold sm:px-3 sm:text-xs",
-                      c.cls
-                    )}
-                  >
-                    <c.icon className="h-3.5 w-3.5" />
-                    {c.label}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
         </section>
 
-        <Tabs defaultValue="sheet" className="w-full">
+        <Tabs defaultValue="remove" className="w-full">
           {/* graphical tab cards */}
-          <TabsList className="mb-4 grid h-auto w-full grid-cols-1 items-stretch gap-2.5 rounded-none border-0 bg-transparent p-0 sm:mb-5 sm:grid-cols-3 sm:gap-3">
+          <TabsList className="mb-4 grid h-auto w-full grid-cols-2 items-stretch gap-2.5 rounded-none border-0 bg-transparent p-0 sm:mb-5 sm:grid-cols-4 sm:gap-3">
             {TABS.map((t) => (
               <TabsTrigger
                 key={t.value}
@@ -166,11 +158,11 @@ export default function Home() {
                 <span className="relative flex w-full items-center gap-2.5 sm:gap-3">
                   <span
                     className={cn(
-                      "grid h-10 w-10 shrink-0 place-items-center rounded-xl shadow-lg transition-transform group-hover:scale-110 group-active:scale-95 sm:h-11 sm:w-11",
+                      "grid h-10 w-10 shrink-0 place-items-center rounded-xl shadow-lg transition-transform group-hover:scale-110 group-active:scale-95",
                       t.iconBox
                     )}
                   >
-                    <t.icon className="h-5 w-5 sm:h-5.5 sm:w-5.5" />
+                    <t.icon className="h-5 w-5" />
                   </span>
                   <span className="flex min-w-0 flex-col items-start gap-0.5">
                     <span className="text-sm font-black text-foreground">{t.title}</span>
@@ -188,6 +180,9 @@ export default function Home() {
             ))}
           </TabsList>
 
+          <TabsContent value="remove" className="mt-0">
+            <BgRemove />
+          </TabsContent>
           <TabsContent value="sheet" className="mt-0">
             <SheetCutter />
           </TabsContent>

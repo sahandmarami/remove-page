@@ -8,9 +8,9 @@ import { SwRegister } from "@/components/sw-register";
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata: Metadata = {
-  title: "اسپرایت‌فورج | SpriteForge — برش‌زن هوشمند شیت و استخراج فریم",
+  title: "اسپرایت‌فورج | SpriteForge — حذف خودکار پس‌زمینه و استخراج فریم",
   description:
-    "استودیوی حرفه‌ای برش شیت تصاویر، حذف پس‌زمینه با موتور بینایی ماشین، استخراج فریم از ویدیو و گیف با کروماکی زنده، سازنده اسپرایت‌شیت و خروجی WebP شفاف.",
+    "حذف خودکار و دقیق پس‌زمینه تصاویر و گیف، برش هوشمند شیت، استخراج فریم از ویدیو، سازنده اسپرایت‌شیت و خروجی WebP شفاف — همه‌چیز داخل مرورگر.",
   keywords: [
     "sprite sheet",
     "background removal",

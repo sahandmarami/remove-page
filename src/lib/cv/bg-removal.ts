@@ -47,6 +47,11 @@ export interface BgRemovalOptions {
    * tight crops where the border may contain mostly foreground pixels.
    */
   bgColorHint?: RGB | null;
+  /**
+   * Pre-discovered background clusters (auto engine). When provided it
+   * replaces the internal border sampling entirely.
+   */
+  bgClusters?: RGB[] | null;
 }
 
 export const DEFAULT_BG_OPTIONS: BgRemovalOptions = {
@@ -224,11 +229,14 @@ export function removeBackground(
   const out = new ImageData(new Uint8ClampedArray(data), w, h);
   const od = out.data;
 
-  // --- background clusters: hint wins, otherwise border sampling ---
+  // --- background clusters: hint wins, then provided clusters, then border sampling ---
   let clusters: RGB[];
   let bgRatio: number;
   if (opts.bgColorHint) {
     clusters = [opts.bgColorHint];
+    bgRatio = 1;
+  } else if (opts.bgClusters && opts.bgClusters.length > 0) {
+    clusters = opts.bgClusters;
     bgRatio = 1;
   } else {
     const found = dominantEdgeColors(data, w, h, 3, 3, 0.1);
