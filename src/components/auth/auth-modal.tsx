@@ -56,7 +56,7 @@ function faAuthError(err: unknown): string {
   if (/user already registered/i.test(msg))
     return "این ایمیل قبلاً ثبت شده — وارد شو";
   if (code === "over_email_send_rate_limit" || /rate limit|too many/i.test(msg))
-    return "ارسال ایمیل محدود شده — چند دقیقه بعد دوباره امتحان کن";
+    return "سرویس ایمیل رایگان ساعتی محدوده — حدود یک ساعت دیگه دوباره امتحان کن (اسپم را هم چک کن)";
   if (/token has expired|expired/i.test(msg))
     return "کد منقضی شده — دوباره درخواست بده";
   if (/invalid otp|invalid token|code/i.test(msg))

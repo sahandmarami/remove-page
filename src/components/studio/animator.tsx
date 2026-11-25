@@ -133,12 +133,42 @@ export function Animator() {
 
   if (frames.length === 0) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-3xl border border-line panel-glass p-10 text-center">
-        <div className="relative grid h-20 w-20 place-items-center rounded-2xl metallic-gradient shadow-xl">
-          <ImageIcon className="h-9 w-9 text-white" />
+      <div className="dropzone-frame">
+        <div className="relative flex min-h-[380px] flex-col items-center justify-center gap-5 overflow-hidden rounded-[1.45rem] bg-surface p-8 text-center">
+          <div className="pointer-events-none absolute -top-28 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-tint blur-3xl" />
+          <div className="pointer-events-none absolute inset-x-10 bottom-4 h-24 rounded-full bg-fuchsia-tint/40 blur-2xl" />
+
+          <div className="hero-icon-float hero-icon-glow relative grid h-24 w-24 place-items-center rounded-[1.4rem] metallic-gradient shadow-xl">
+            <ImageIcon className="h-11 w-11 text-white drop-shadow" />
+          </div>
+
+          <div className="relative">
+            <p className="text-xl font-black tracking-tight text-foreground">
+              انیماتور خالیه
+            </p>
+            <p className="mt-1.5 text-xs font-bold text-faint">
+              سه قدم تا انیمیشنت
+            </p>
+          </div>
+
+          <div className="relative flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+            {[
+              { n: "۱", t: "تصویر رو حذف پس‌زمینه کن" },
+              { n: "۲", t: "از ویدیو فریم بگیر" },
+              { n: "۳", t: "«به انیماتور اضافه» رو بزن" },
+            ].map((s) => (
+              <span
+                key={s.n}
+                className="flex items-center justify-center gap-2 rounded-xl border border-line bg-chip px-3 py-2 text-[11px] font-bold text-soft"
+              >
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md metallic-gradient text-[10px] font-extrabold text-white">
+                  {s.n}
+                </span>
+                {s.t}
+              </span>
+            ))}
+          </div>
         </div>
-        <p className="text-lg font-black text-foreground">هنوز فریمی نیست</p>
-        <p className="text-xs text-faint">از ابزارهای بالا فریم اضافه کنید</p>
       </div>
     );
   }

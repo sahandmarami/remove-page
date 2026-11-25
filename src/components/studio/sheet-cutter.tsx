@@ -256,24 +256,47 @@ export function SheetCutter() {
             setDragOver(false);
             void onFiles(e.dataTransfer.files);
           }}
-          className={`relative flex min-h-[380px] cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-3xl border-2 border-dashed bg-surface transition-all sm:min-h-[440px] ${
-            dragOver ? "border-cyan-line-strong bg-cyan-tint/30" : "border-line-strong hover:border-cyan-line"
-          }`}
+          data-hot={dragOver}
+          className="dropzone-frame group cursor-pointer"
         >
-          <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-cyan-tint blur-3xl" />
-          <div className="relative grid h-20 w-20 place-items-center rounded-2xl border border-cyan-line bg-cyan-tint shadow-xl">
-            <Scissors className="h-9 w-9 text-cyan-ink" />
+          <div
+            className={`relative flex min-h-[340px] flex-col items-center justify-center gap-5 overflow-hidden rounded-[1.45rem] bg-surface transition-colors sm:min-h-[440px] ${
+              dragOver ? "bg-cyan-tint/40" : ""
+            }`}
+          >
+            <div className="pointer-events-none absolute -top-28 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-tint blur-3xl" />
+            <div className="pointer-events-none absolute inset-x-10 bottom-4 h-24 rounded-full bg-cyan-tint/40 blur-2xl" />
+
+            <div className="hero-icon-float hero-icon-glow relative grid h-24 w-24 place-items-center rounded-[1.4rem] bg-gradient-to-br from-cyan-500 to-teal-600 shadow-xl">
+              <Scissors className="h-11 w-11 text-white drop-shadow" />
+            </div>
+
+            <div className="relative text-center">
+              <p className="text-xl font-black tracking-tight text-foreground">
+                اسپرایت‌شیتت رو رها کن
+              </p>
+              <p className="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-bold text-faint">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-ink" />
+                گرید فریم‌ها خودکار تشخیص داده می‌شه
+              </p>
+            </div>
+
+            <span className="btn-shine relative flex items-center gap-2 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-600 px-6 py-3 text-sm font-extrabold text-white shadow-lg transition-transform group-hover:scale-105 group-active:scale-95">
+              <ImageUp className="h-4.5 w-4.5" />
+              انتخاب فایل
+            </span>
+
+            <div className="relative flex flex-wrap items-center justify-center gap-1.5" dir="ltr">
+              {["PNG", "JPG", "WebP"].map((f) => (
+                <span
+                  key={f}
+                  className="rounded-lg border border-line bg-chip px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-soft"
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="relative text-center">
-            <p className="text-lg font-black text-foreground">انتخاب اسپرایت‌شیت</p>
-            <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-faint">
-              <Sparkles className="h-3.5 w-3.5 text-cyan-ink" />
-              هوش مصنوعی گرید فریم‌ها را خودکار تشخیص می‌دهد
-            </p>
-          </div>
-          <p className="relative text-[11px] text-faint" dir="ltr">
-            PNG · JPG · WebP
-          </p>
         </div>
       </div>
     );

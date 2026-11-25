@@ -8,8 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/components/auth/auth-context";
@@ -43,7 +41,7 @@ export function AccountButton() {
         type="button"
         variant="secondary"
         onClick={() => openAuth("login")}
-        className={`${shell} gap-1.5 px-2.5 text-[11px] font-extrabold sm:px-3 sm:text-xs`}
+        className="btn-shine h-10 shrink-0 rounded-xl metallic-gradient px-3 text-xs font-extrabold text-white shadow-md transition-all hover:brightness-110 active:scale-95 sm:h-9"
       >
         <LogIn className="h-4 w-4" />
         <span>ورود</span>
@@ -86,46 +84,46 @@ export function AccountButton() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="panel-glass border-line min-w-[15rem] rounded-2xl p-1.5 shadow-2xl"
+        className="panel-glass border-line min-w-[15rem] overflow-hidden rounded-2xl p-0 shadow-2xl"
       >
-        <DropdownMenuLabel className="rounded-xl px-2 py-2.5">
-          <div className="flex items-center gap-2.5">
-            <span className="logo-ring grid h-10 w-10 shrink-0 place-items-center rounded-full p-[2px]">
-              <span className="metallic-gradient grid h-full w-full place-items-center rounded-full text-sm font-extrabold text-white">
-                {letter}
-              </span>
+        {/* gradient header — same language as the auth modal hero band */}
+        <div className="metallic-gradient relative flex items-center gap-3 overflow-hidden px-4 py-3.5">
+          <span className="pointer-events-none absolute -left-8 -top-10 h-24 w-24 rounded-full bg-white/15 blur-xl" />
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-extrabold text-white ring-1 ring-white/40">
+            {letter}
+          </span>
+          <span className="min-w-0">
+            <span
+              dir="ltr"
+              className="block max-w-[12rem] truncate text-left text-xs font-extrabold text-white"
+            >
+              {user.email}
             </span>
-            <span className="min-w-0">
+            <span className="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-white/90">
               <span
-                dir="ltr"
-                className="block max-w-[12rem] truncate text-left text-xs font-extrabold"
-              >
-                {user.email}
-              </span>
-              <span className="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-neon">
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    user.email_confirmed_at ? "bg-neon" : "bg-amber-400"
-                  }`}
-                />
-                {user.email_confirmed_at ? "ایمیل تایید شده" : "ایمیل تایید نشده"}
-              </span>
+                className={`h-1.5 w-1.5 rounded-full ${
+                  user.email_confirmed_at ? "bg-neon" : "bg-amber-300"
+                }`}
+              />
+              {user.email_confirmed_at ? "ایمیل تایید شده" : "ایمیل تایید نشده"}
             </span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-line" />
-        <DropdownMenuItem
-          disabled={busy}
-          onClick={handleSignOut}
-          className="mt-1 gap-2 rounded-xl text-xs font-bold text-destructive focus:bg-destructive/10 focus:text-destructive"
-        >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <LogOut className="h-4 w-4" />
-          )}
-          خروج از حساب
-        </DropdownMenuItem>
+          </span>
+        </div>
+
+        <div className="p-1.5">
+          <DropdownMenuItem
+            disabled={busy}
+            onClick={handleSignOut}
+            className="gap-2 rounded-xl text-xs font-bold text-destructive focus:bg-destructive/15 focus:text-destructive"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+            خروج از حساب
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

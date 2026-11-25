@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Film, Loader2, Pause, Play, X } from "lucide-react";
+import { Film, ImageUp, Loader2, Pause, Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { autoRemoveBackground } from "@/lib/cv/auto-remove";
 import { decodeGif, type DecodedFrame } from "@/lib/cv/gif";
@@ -376,21 +376,46 @@ export function VideoStudio() {
             setDragOver(false);
             onFiles(e.dataTransfer.files);
           }}
-          className={`relative flex min-h-[380px] cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-3xl border-2 border-dashed bg-surface transition-all sm:min-h-[440px] ${
-            dragOver ? "border-fuchsia-line-strong bg-fuchsia-tint/30" : "border-line-strong hover:border-fuchsia-line"
-          }`}
+          data-hot={dragOver}
+          className="dropzone-frame group cursor-pointer"
         >
-          <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-fuchsia-tint blur-3xl" />
-          <div className="relative grid h-20 w-20 place-items-center rounded-2xl border border-fuchsia-line bg-fuchsia-tint shadow-xl">
-            <Film className="h-9 w-9 text-fuchsia-ink" />
+          <div
+            className={`relative flex min-h-[340px] flex-col items-center justify-center gap-5 overflow-hidden rounded-[1.45rem] bg-surface transition-colors sm:min-h-[440px] ${
+              dragOver ? "bg-fuchsia-tint/40" : ""
+            }`}
+          >
+            <div className="pointer-events-none absolute -top-28 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-fuchsia-tint blur-3xl" />
+            <div className="pointer-events-none absolute inset-x-10 bottom-4 h-24 rounded-full bg-fuchsia-tint/40 blur-2xl" />
+
+            <div className="hero-icon-float hero-icon-glow relative grid h-24 w-24 place-items-center rounded-[1.4rem] bg-gradient-to-br from-fuchsia-500 to-pink-600 shadow-xl">
+              <Film className="h-11 w-11 text-white drop-shadow" />
+            </div>
+
+            <div className="relative text-center">
+              <p className="text-xl font-black tracking-tight text-foreground">
+                ویدیو یا گیفت رو رها کن
+              </p>
+              <p className="mt-1.5 text-xs font-bold text-faint">
+                فریم‌ها خودکار شفاف می‌شن
+              </p>
+            </div>
+
+            <span className="btn-shine relative flex items-center gap-2 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 px-6 py-3 text-sm font-extrabold text-white shadow-lg transition-transform group-hover:scale-105 group-active:scale-95">
+              <ImageUp className="h-4.5 w-4.5" />
+              انتخاب فایل
+            </span>
+
+            <div className="relative flex flex-wrap items-center justify-center gap-1.5" dir="ltr">
+              {["MP4", "WebM", "MOV", "GIF"].map((f) => (
+                <span
+                  key={f}
+                  className="rounded-lg border border-line bg-chip px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-soft"
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="relative text-center">
-            <p className="text-lg font-black text-foreground">انتخاب ویدیو یا گیف</p>
-            <p className="mt-1 text-xs text-faint">فریم‌ها خودکار شفاف می‌شوند</p>
-          </div>
-          <p className="relative text-[11px] text-faint" dir="ltr">
-            MP4 · WebM · MOV · GIF
-          </p>
         </div>
       ) : (
         <>

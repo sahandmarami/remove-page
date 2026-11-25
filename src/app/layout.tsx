@@ -67,6 +67,9 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased bg-background text-foreground flex flex-col">
+        {/* preload the two self-hosted fonts (React hoists these to <head>) */}
+        <link rel="preload" href="/fonts/vazirmatn.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/orbitron.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           <AuthProvider>
             {children}
