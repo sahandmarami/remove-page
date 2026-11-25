@@ -374,12 +374,23 @@ function discoverHiddenBgShades(
     for (let y = 0; y < h; y++) { add(x, y, 2); add(w - 1 - x, y, 3); }
 
   const out: RGB[] = [];
+  // a genuine hidden shade is a slightly different tone of the SAME wall /
+  // panel surface — its lightness stays near the base background. Dark
+  // neutral sprite parts (coats, hats, boots touching the border) are
+  // dramatically darker and must never become background clusters.
+  const lum = (c: RGB) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+  let keptBorder = 0;
+  for (const c of buckets.values()) keptBorder += c.n;
   for (const c of buckets.values()) {
-    if (c.n < 24) continue;
+    if (c.n < Math.max(40, keptBorder * 0.04)) continue;
     const edges = [c.edges & 1, c.edges & 2, c.edges & 4, c.edges & 8].filter(Boolean).length;
     if (edges < 2) continue;
     const mean: RGB = [c.r / c.n, c.g / c.n, c.b / c.n];
     if (minClusterDist(mean, clusters) <= tolerance + 2) continue;
+    // luminance proximity to the nearest BASE cluster (wall stripe test)
+    let lumNear = Infinity;
+    for (const bc of baseClusters) lumNear = Math.min(lumNear, Math.abs(lum(mean) - lum(bc)));
+    if (lumNear > 28) continue;
     out.push(mean);
     if (out.length >= 3) break;
   }

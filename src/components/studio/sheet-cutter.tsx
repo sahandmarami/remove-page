@@ -1,10 +1,22 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Boxes, Download, ImageUp, Loader2, Scissors, Trash2, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  ImageUp,
+  Loader2,
+  RefreshCw,
+  Scissors,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { BoxCanvas } from "@/components/studio/box-canvas";
-import { detectBoxes, type Box } from "@/lib/cv/detect-boxes";
+import { type Box } from "@/lib/cv/detect-boxes";
+import { analyzeSheet, type SmartSheetResult } from "@/lib/cv/smart-sheet";
 import { removeBackground, DEFAULT_BG_OPTIONS } from "@/lib/cv/bg-removal";
 import {
   canvasToBlob,
@@ -24,39 +36,79 @@ interface SourceImage {
   name: string;
 }
 
+interface GridInfo {
+  mode: SmartSheetResult["mode"];
+  columns: number;
+  rows: number;
+  cellW: number;
+  cellH: number;
+  confidence: number;
+}
+
 export function SheetCutter() {
   const addFrames = useFrameStore((s) => s.addFrames);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [source, setSource] = useState<SourceImage | null>(null);
   const [boxes, setBoxes] = useState<Box[]>([]);
+  const [grid, setGrid] = useState<GridInfo | null>(null);
+  const [colOverride, setColOverride] = useState(0); // 0 = automatic
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [cropping, setCropping] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const bgHintRef = useRef<RGB | null>(null);
 
-  const loadCanvas = useCallback((canvas: HTMLCanvasElement, name: string) => {
-    setSource({ canvas, name });
-    setBoxes([]);
-    setSelectedId(null);
+  /** Smart (AI) detection: layout inference + uniform grid cutting. */
+  const runDetect = useCallback((canvas: HTMLCanvasElement, forcedCols: number) => {
     setDetecting(true);
-    // auto-detect right after upload
+    // yield a frame so the spinner paints before the CPU work
     window.setTimeout(() => {
       try {
-        const result = detectBoxes(canvas, { tolerance: 42 });
+        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const result = analyzeSheet(
+          { data: img.data, width: canvas.width, height: canvas.height },
+          forcedCols >= 1 ? { columns: forcedCols } : {}
+        );
         bgHintRef.current = result.bgColor;
         setBoxes(result.boxes);
+        setGrid({
+          mode: result.mode,
+          columns: result.columns,
+          rows: result.rows,
+          cellW: result.cellW,
+          cellH: result.cellH,
+          confidence: result.confidence,
+        });
         if (result.boxes.length > 0) {
-          toast.success(`${result.boxes.length} آیتم پیدا شد`);
+          const where =
+            result.mode === "grid"
+              ? `گرید ${result.columns}×${result.rows} — فریم‌ها هم‌اندازه`
+              : "برش هوشمند";
+          toast.success(`${result.boxes.length} فریم پیدا شد — ${where}`);
+        } else {
+          toast.error("اسپرایتی در تصویر پیدا نشد");
         }
       } catch {
         toast.error("تشخیص ناموفق بود");
       } finally {
         setDetecting(false);
       }
-    }, 50);
+    }, 30);
   }, []);
+
+  const loadCanvas = useCallback(
+    (canvas: HTMLCanvasElement, name: string) => {
+      setSource({ canvas, name });
+      setBoxes([]);
+      setGrid(null);
+      setSelectedId(null);
+      setColOverride(0);
+      runDetect(canvas, 0);
+    },
+    [runDetect]
+  );
 
   const onFiles = useCallback(
     async (files: FileList | null) => {
@@ -79,26 +131,47 @@ export function SheetCutter() {
   const close = () => {
     setSource(null);
     setBoxes([]);
+    setGrid(null);
     setSelectedId(null);
+    setColOverride(0);
     bgHintRef.current = null;
   };
 
-  const processCrop = useCallback((box: Box): HTMLCanvasElement => {
-    const original = enhanceSmallCanvas(cropToCanvas(source!.canvas, box));
-    const img = original
-      .getContext("2d", { willReadFrequently: true })!
-      .getImageData(0, 0, original.width, original.height);
-    const result = removeBackground(img, {
-      ...DEFAULT_BG_OPTIONS,
-      feather: 0.5,
-      bgColorHint: bgHintRef.current,
-    });
-    const out = document.createElement("canvas");
-    out.width = original.width;
-    out.height = original.height;
-    out.getContext("2d")!.putImageData(result.image, 0, 0);
-    return out;
-  }, [source]);
+  const processCrop = useCallback(
+    (box: Box): HTMLCanvasElement => {
+      const original = enhanceSmallCanvas(cropToCanvas(source!.canvas, box));
+      const ctx = original.getContext("2d", { willReadFrequently: true })!;
+      const img = ctx.getImageData(0, 0, original.width, original.height);
+      let result = removeBackground(img, {
+        ...DEFAULT_BG_OPTIONS,
+        feather: 0.5,
+        bgColorHint: bgHintRef.current,
+        removeHoles: true,
+      });
+      // sanity guard: a detected cell always contains artwork. If the keying
+      // nuked nearly everything, retry with the conservative pipeline.
+      let opaque = 0;
+      for (let i = 3; i < result.image.data.length; i += 4) {
+        if (result.image.data[i] > 128) opaque++;
+      }
+      if (opaque < original.width * original.height * 0.02) {
+        result = removeBackground(img, {
+          ...DEFAULT_BG_OPTIONS,
+          feather: 0.5,
+          bgColorHint: bgHintRef.current,
+          removeHoles: true,
+          removeGuideLines: false,
+          tolerance: Math.max(24, Math.round(DEFAULT_BG_OPTIONS.tolerance * 0.85)),
+        });
+      }
+      const out = document.createElement("canvas");
+      out.width = original.width;
+      out.height = original.height;
+      out.getContext("2d")!.putImageData(result.image, 0, 0);
+      return out;
+    },
+    [source]
+  );
 
   const cropAll = useCallback(async () => {
     if (!source || boxes.length === 0) return;
@@ -147,6 +220,16 @@ export function SheetCutter() {
     }));
   }, [boxes, source]);
 
+  const cycleColumns = (dir: 1 | -1) => {
+    if (!source) return;
+    // 0 = automatic, then 2..24
+    let next = colOverride + dir;
+    if (next < 0) next = 24;
+    if (next > 24) next = 0;
+    setColOverride(next);
+    runDetect(source.canvas, next);
+  };
+
   if (!source) {
     /* ---------- upload ---------- */
     return (
@@ -182,8 +265,11 @@ export function SheetCutter() {
             <Scissors className="h-9 w-9 text-cyan-ink" />
           </div>
           <div className="relative text-center">
-            <p className="text-lg font-black text-foreground">انتخاب تصویر</p>
-            <p className="mt-1 text-xs text-faint">آیتم‌ها خودکار برش می‌خورند</p>
+            <p className="text-lg font-black text-foreground">انتخاب اسپرایت‌شیت</p>
+            <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-faint">
+              <Sparkles className="h-3.5 w-3.5 text-cyan-ink" />
+              هوش مصنوعی گرید فریم‌ها را خودکار تشخیص می‌دهد
+            </p>
           </div>
           <p className="relative text-[11px] text-faint" dir="ltr">
             PNG · JPG · WebP
@@ -194,6 +280,12 @@ export function SheetCutter() {
   }
 
   /* ---------- editor ---------- */
+  const gridLabel = detecting
+    ? "…"
+    : grid && grid.mode === "grid" && grid.columns > 0
+      ? `${grid.columns}×${grid.rows}`
+      : `${boxes.length}`;
+
   return (
     <div className="flex flex-col gap-3">
       <input
@@ -204,7 +296,7 @@ export function SheetCutter() {
         onChange={(e) => void onFiles(e.target.files)}
       />
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -213,10 +305,48 @@ export function SheetCutter() {
           <ImageUp className="h-4 w-4" />
           تعویض
         </button>
-        <span className="flex items-center gap-1.5 rounded-xl border border-cyan-line bg-cyan-tint px-2.5 py-2 text-xs font-bold text-cyan-ink tabular-nums">
-          <Boxes className="h-4 w-4" />
-          {detecting ? "…" : boxes.length}
+        <span
+          className="flex items-center gap-1.5 rounded-xl border border-cyan-line bg-cyan-tint px-2.5 py-2 text-xs font-bold text-cyan-ink tabular-nums"
+          title={
+            grid && grid.mode === "grid"
+              ? `سلول ${grid.cellW}×${grid.cellH} — همه فریم‌ها هم‌اندازه‌اند`
+              : undefined
+          }
+        >
+          <Sparkles className="h-4 w-4" />
+          {gridLabel}
         </span>
+        {/* manual grid override */}
+        <div className="flex items-center gap-1 rounded-xl border border-line bg-chip p-1">
+          <button
+            type="button"
+            aria-label="ستون کمتر"
+            onClick={() => cycleColumns(-1)}
+            className="grid h-7 w-7 place-items-center rounded-lg text-soft transition-colors hover:bg-cyan-tint hover:text-cyan-ink"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <span className="min-w-[52px] text-center text-[11px] font-bold text-soft tabular-nums">
+            {colOverride >= 1 ? `${colOverride} ستون` : "گرید: خودکار"}
+          </span>
+          <button
+            type="button"
+            aria-label="ستون بیشتر"
+            onClick={() => cycleColumns(1)}
+            className="grid h-7 w-7 place-items-center rounded-lg text-soft transition-colors hover:bg-cyan-tint hover:text-cyan-ink"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => runDetect(source.canvas, colOverride)}
+          disabled={detecting}
+          className="flex items-center gap-1.5 rounded-xl border border-line bg-chip px-3 py-2 text-xs font-bold text-soft transition-colors hover:border-cyan-line hover:text-foreground disabled:opacity-50"
+        >
+          {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          تشخیص دوباره
+        </button>
         {boxes.length > 0 && (
           <button
             type="button"
