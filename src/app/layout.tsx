@@ -3,6 +3,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SwRegister } from "@/components/sw-register";
+import { AuthProvider } from "@/components/auth/auth-context";
+import { AuthModal } from "@/components/auth/auth-modal";
 
 /** static-export basePath (e.g. "/remove-page" on GitHub Pages) — empty in dev */
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -66,7 +68,10 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased bg-background text-foreground flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          {children}
+          <AuthProvider>
+            {children}
+            <AuthModal />
+          </AuthProvider>
           <Toaster position="bottom-center" dir="rtl" expand={false} richColors closeButton />
           <SwRegister />
         </ThemeProvider>

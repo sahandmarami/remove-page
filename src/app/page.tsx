@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Clapperboard, Eraser, Film, Scissors } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountButton } from "@/components/auth/account-button";
 import { BgRemove } from "@/components/studio/bg-remove";
 import { SheetCutter } from "@/components/studio/sheet-cutter";
 import { VideoStudio } from "@/components/studio/video-studio";
@@ -61,6 +62,7 @@ export default function Home() {
                 {frameCount}
               </span>
             )}
+            <AccountButton />
             <ThemeToggle />
           </div>
         </div>
