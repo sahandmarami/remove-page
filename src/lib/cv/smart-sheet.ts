@@ -194,83 +194,6 @@ function autocorrelationPeriod(
   return { period: bestPeriod, prominence };
 }
 
-/**
- * Infer the uniform column pitch of a sheet from column bands.
- * Returns the pitch and how trustworthy it is (0..1).
- */
-function inferPitch(
-  bands: Band[],
-  profileLen: number,
-  minCell: number,
-  maxCell: number
-): { pitch: number; confidence: number; anchor: number } {
-  if (bands.length === 0) return { pitch: 0, confidence: 0, anchor: 0 };
-
-  // candidate 1: median start-to-start distance
-  const starts = bands.map((b) => b.start);
-  const diffs: number[] = [];
-  for (let i = 1; i < starts.length; i++) {
-    const d = starts[i] - starts[i - 1];
-    if (d >= minCell && d <= maxCell) diffs.push(d);
-  }
-
-  let bestPitch = 0;
-  let bestConf = 0;
-  let bestAnchor = bands[0].start;
-
-  const tryCandidate = (pitch: number, anchor: number, voteShare: number) => {
-    if (pitch < minCell || pitch > maxCell) return;
-    // how many band starts align with anchor + k*pitch (±tolerance)?
-    const tol = Math.max(3, pitch * 0.08);
-    let aligned = 0;
-    for (const s of starts) {
-      const k = Math.round((s - anchor) / pitch);
-      if (k < 0) continue;
-      if (Math.abs(s - (anchor + k * pitch)) <= tol) aligned++;
-    }
-    const alignScore = aligned / starts.length;
-    const conf = alignScore * voteShare;
-    if (conf > bestConf) {
-      bestConf = conf;
-      bestPitch = pitch;
-      bestAnchor = anchor;
-    }
-  };
-
-  if (diffs.length >= 1) {
-    const med = median(diffs);
-    const disp = dispersion(diffs);
-    // tight spacing → strong vote; loose → weak
-    const vote = disp < 0.04 ? 1 : disp < 0.1 ? 0.85 : disp < 0.18 ? 0.6 : 0.35;
-    tryCandidate(med, bands[0].start, vote);
-    // also try pitch = W / round(W / med) — the "sheet edge aligned" variant
-    const nEstimate = Math.round(profileLen / med);
-    if (nEstimate >= 2) {
-      tryCandidate(profileLen / nEstimate, 0, vote);
-    }
-  }
-
-  // candidate 2: full-width tiling for single-band sheets (touching sprites)
-  if (bands.length === 1) {
-    for (let n = Math.max(2, Math.floor(profileLen / maxCell)); n <= Math.floor(profileLen / minCell); n++) {
-      const pitch = profileLen / n;
-      // only plausible if the single band covers most of the width
-      const cover = (bands[0].end - bands[0].start) / profileLen;
-      if (cover > 0.75) {
-        const conf = 0.3; // weak: only the band width supports it
-        if (conf > bestConf) {
-          bestConf = conf;
-          bestPitch = pitch;
-          bestAnchor = 0;
-        }
-      }
-      void pitch;
-    }
-  }
-
-  return { pitch: bestPitch, confidence: bestConf, anchor: bestAnchor };
-}
-
 /** Union of two rects. */
 function unionRect(
   a: { x: number; y: number; w: number; h: number },
@@ -442,27 +365,13 @@ export function analyzeSheet(
 
   if (forcedCols >= 1) {
     columns = forcedCols;
-    colPitch = w / columns;
+    colPitch = sw / columns; // full-res px
     colConf = 1;
     colAnchor = 0;
   } else {
-    const inferred = inferPitch(colBandsGlobal, w, minCell, maxCell);
-    colPitch = inferred.pitch / scale; // to full-res px
-    colConf = inferred.confidence;
-    colAnchor = inferred.anchor / scale;
-    columns = colPitch > 0 ? Math.round(sw / colPitch) : 0;
-    if (colPitch > 0 && columns >= 1) {
-      // validate: sheet width must tile cleanly (sprite sheets are authored edge-to-edge)
-      const tileErr = Math.abs(columns * colPitch - sw) / sw;
-      if (tileErr > 0.06) {
-        colConf *= 0.4;
-        columns = Math.max(1, Math.round(sw / colPitch));
-        colPitch = sw / columns;
-      }
-    }
     // touching-sprite strips: no usable bands → autocorrelation on the
     // column profile finds the dominant period (works even without gaps)
-    if (colPitch === 0 && colBandsGlobal.length === 1) {
+    if (colBandsGlobal.length === 1) {
       const band = colBandsGlobal[0];
       const cover = (band.end - band.start) / w;
       if (cover > 0.8 && w > h * 1.6) {
@@ -470,7 +379,7 @@ export function analyzeSheet(
         const maxP = Math.min(w - 2, Math.round(w * 0.95));
         const ac = autocorrelationPeriod(colS, minP, maxP);
         if (ac.period > 0 && ac.prominence > 0.1) {
-          const pitchFull = (ac.period / scale);
+          const pitchFull = ac.period / scale;
           const cols = Math.round(sw / pitchFull);
           const tileErr = Math.abs(cols * pitchFull - sw) / sw;
           if (cols >= 2 && tileErr <= 0.03) {
@@ -479,6 +388,73 @@ export function analyzeSheet(
             colConf = Math.min(0.85, 0.35 + ac.prominence);
             colAnchor = 0;
           }
+        }
+      }
+    }
+
+    // unified grid-candidate selection for multi-band sheets. Two layout
+    // hypotheses are scored by how many sprite bands each fits FULLY inside
+    // its cell; on a tie the exact edge-anchored tiling wins.
+    if (colBandsGlobal.length >= 2) {
+      const startsF = colBandsGlobal.map((b) => b.start / scale);
+      const endsF = colBandsGlobal.map((b) => b.end / scale);
+      const widthsF = colBandsGlobal.map((b) => (b.end - b.start) / scale);
+      const diffs: number[] = [];
+      for (let i = 1; i < startsF.length; i++) {
+        const d = startsF[i] - startsF[i - 1];
+        if (d > 8) diffs.push(d);
+      }
+      const medPitch = median(diffs);
+      const disp = dispersion(diffs);
+
+      if (medPitch > 8 && disp < 0.12 && medPitch <= sw * 0.9) {
+        // evaluate a grid hypothesis: how many bands are fully contained in
+        // their cell + how consistently the sprites sit at the same offset
+        // inside their cells (low drift ⇒ smooth flipbook playback)
+        const evaluate = (origin: number, pitch: number) => {
+          const offsets: number[] = [];
+          let contained = 0;
+          for (let i = 0; i < startsF.length; i++) {
+            const k = Math.floor((startsF[i] - origin) / pitch);
+            if (k < 0) continue;
+            const cx = origin + k * pitch;
+            if (startsF[i] >= cx - 2 && endsF[i] <= cx + pitch + 2) {
+              contained++;
+              offsets.push(startsF[i] - cx);
+            }
+          }
+          const drift = dispersion(offsets.length >= 2 ? offsets : [0, 0]);
+          return { contained, drift };
+        };
+        const total = startsF.length;
+
+        // A — edge-anchored exact tiling (the standard authored layout)
+        const colsA = Math.max(1, Math.round(sw / medPitch));
+        const pitchA = sw / colsA;
+        const evA = evaluate(0, pitchA);
+
+        // B — margin-tolerant: origin centered on the first band, true band pitch
+        const originB = Math.max(
+          0,
+          Math.round(startsF[0] - (medPitch - widthsF[0]) / 2)
+        );
+        const evB = evaluate(originB, medPitch);
+
+        const pickB =
+          evB.contained >= total &&
+          (evA.contained < total ||
+            evB.drift < evA.drift * 0.75 ||
+            (originB > 4 && evB.drift <= evA.drift * 1.05));
+        if (evA.contained >= total && !pickB) {
+          colPitch = pitchA;
+          columns = colsA;
+          colAnchor = 0;
+          colConf = Math.max(colConf, 0.9);
+        } else if (pickB) {
+          colPitch = medPitch;
+          columns = Math.max(1, Math.round((sw - originB) / medPitch));
+          colAnchor = originB;
+          colConf = Math.max(colConf, disp < 0.05 ? 0.85 : 0.7);
         }
       }
     }
@@ -544,19 +520,23 @@ export function analyzeSheet(
     columns >= 1 && colConf >= 0.5 && rows >= 1 && (rowPitch > 0 || rows === 1);
 
   if (gridReady) {
-    // ---------- GRID MODE: identical cells, edge-anchored ----------
-    const cellWf = sw / columns;
-    const cellHf = rowPitch > 0 ? sh / rows : sh / Math.max(1, rows);
+    // ---------- GRID MODE: identical cells, anchored at the sheet edge ----------
+    const cellWf = colPitch;
+    const cellHf = rowPitch > 0 ? rowPitch : sh / Math.max(1, rows);
     const boxes: Box[] = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < columns; c++) {
-        const cx = c * cellWf;
-        const cy = r * (rowPitch > 0 ? rowPitch : cellHf);
+        const cx = colAnchor + c * cellWf;
+        const cy = r * cellHf;
+        // clamp the trailing cell to the sheet edge (outer margins case)
+        const cw = Math.min(cellWf, sw - cx);
+        const ch = Math.min(cellHf, sh - cy);
+        if (cw < 4 || ch < 4) continue;
         // does this cell contain any content at working res?
         const wx0 = Math.max(0, Math.floor((cx / sw) * w));
-        const wx1 = Math.min(w, Math.ceil(((cx + cellWf) / sw) * w));
+        const wx1 = Math.min(w, Math.ceil(((cx + cw) / sw) * w));
         const wy0 = Math.max(0, Math.floor((cy / sh) * h));
-        const wy1 = Math.min(h, Math.ceil(((cy + cellHf) / sh) * h));
+        const wy1 = Math.min(h, Math.ceil(((cy + ch) / sh) * h));
         let any = 0;
         for (let y = wy0; y < wy1; y++) {
           for (let x = wx0; x < wx1; x++) {
@@ -564,7 +544,7 @@ export function analyzeSheet(
           }
         }
         if (any >= Math.max(4, (wx1 - wx0) * 0.004)) {
-          boxes.push(mkBox(cx, cy, cellWf, cellHf));
+          boxes.push(mkBox(cx, cy, cw, ch));
         }
       }
     }
