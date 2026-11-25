@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, LogIn, LogOut, UserRound } from "lucide-react";
+import { AtSign, Loader2, LogIn, LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -86,37 +86,43 @@ export function AccountButton() {
         align="end"
         sideOffset={10}
         collisionPadding={12}
-        className="panel-solid border-line min-w-[13.5rem] overflow-hidden rounded-2xl p-0 shadow-2xl"
+        className="account-menu min-w-[14rem] overflow-hidden rounded-3xl p-0 shadow-2xl"
       >
-        {/* gradient header — same language as the auth modal hero band */}
-        <div className="metallic-gradient relative flex items-center gap-3 overflow-hidden px-4 py-3">
+        {/* gradient hero band — avatar + status chip (email moved below) */}
+        <div className="metallic-gradient relative flex items-center gap-3 overflow-hidden px-4 py-3.5">
           <span className="pointer-events-none absolute -left-8 -top-10 h-24 w-24 rounded-full bg-white/15 blur-xl" />
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-extrabold text-white ring-1 ring-white/40">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-extrabold text-white ring-2 ring-white/40">
             {letter}
           </span>
-          <span className="min-w-0">
+          <span
+            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold text-white ${
+              user.email_confirmed_at ? "bg-white/15" : "bg-black/25"
+            }`}
+          >
             <span
-              dir="ltr"
-              className="block max-w-[12rem] truncate text-left text-xs font-extrabold text-white"
-            >
-              {user.email}
-            </span>
-            <span className="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-white/90">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  user.email_confirmed_at ? "bg-neon" : "bg-amber-300"
-                }`}
-              />
-              {user.email_confirmed_at ? "ایمیل تایید شده" : "ایمیل تایید نشده"}
-            </span>
+              className={`h-1.5 w-1.5 rounded-full ${
+                user.email_confirmed_at ? "bg-neon" : "bg-amber-300"
+              }`}
+            />
+            {user.email_confirmed_at ? "ایمیل تایید شده" : "ایمیل تایید نشده"}
           </span>
         </div>
 
-        <div className="p-1.5">
+        {/* dark body — email row + logout action pill */}
+        <div className="p-2">
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-2.5 py-2">
+            <AtSign className="h-3.5 w-3.5 shrink-0 text-white/50" />
+            <span
+              dir="ltr"
+              className="min-w-0 flex-1 truncate text-left text-[11px] font-bold text-white/90"
+            >
+              {user.email}
+            </span>
+          </div>
           <DropdownMenuItem
             disabled={busy}
             onClick={handleSignOut}
-            className="gap-2 rounded-xl text-xs font-bold text-destructive focus:bg-destructive/15 focus:text-destructive"
+            className="w-full justify-center gap-2 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 px-3 py-2.5 text-xs font-extrabold text-white shadow-lg transition-all hover:brightness-110 focus:bg-red-600 focus:text-white active:scale-95"
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />

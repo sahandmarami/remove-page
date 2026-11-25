@@ -1,6 +1,6 @@
 /* Remove Page minimal service worker — makes the app installable as a PWA.
    Strategy: network-first with offline fallback to cached shell. */
-const CACHE = "remove-page-v3";
+const CACHE = "remove-page-v4";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
