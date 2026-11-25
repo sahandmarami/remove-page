@@ -157,6 +157,29 @@ async function main() {
     }
   }
 
+  // --- margin-ed sheet (outer gray margins) ---
+  {
+    const margin = 100;
+    const w2 = plague.width + margin * 2;
+    const buf = new Uint8ClampedArray(w2 * plague.height * 4);
+    for (let i = 0; i < buf.length; i += 4) {
+      buf[i] = 125; buf[i + 1] = 125; buf[i + 2] = 125; buf[i + 3] = 255;
+    }
+    for (let y = 0; y < plague.height; y++) {
+      for (let x = 0; x < plague.width; x++) {
+        const si = (y * plague.width + x) * 4;
+        const di = (y * w2 + margin + x) * 4;
+        buf[di] = plague.data[si];
+        buf[di + 1] = plague.data[si + 1];
+        buf[di + 2] = plague.data[si + 2];
+        buf[di + 3] = plague.data[si + 3];
+      }
+    }
+    const margined: RawImage = { data: buf, width: w2, height: plague.height };
+    const r6 = analyzeSheet(margined);
+    report("margined", r6, margined.width, margined.height);
+  }
+
   // --- transparent sheet ---
   try {
     const s003 = await loadRGBA("/home/z/my-project/upload/sprite_003.png");
