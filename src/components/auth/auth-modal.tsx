@@ -34,10 +34,21 @@ import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+/** client-side password policy: ≥8 chars with at least one letter and one digit
+ *  (the dashboard setting MIN_PASSWORD_LENGTH should be raised to 8 as well) */
+function passwordProblem(pw: string): string | null {
+  if (pw.length < 8) return "رمز عبور باید حداقل ۸ کاراکتر باشد";
+  if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw))
+    return "رمز عبور باید هم حرف داشته باشد هم عدد";
+  return null;
+}
+
 /** map supabase errors to friendly persian messages */
 function faAuthError(err: unknown): string {
   const msg = err instanceof Error ? err.message : "";
   const code = (err as { code?: string })?.code ?? "";
+  if (code === "weak_password" || /password.*(weak|length|characters|digit)/i.test(msg))
+    return "رمز عبور ضعیف است — حداقل ۸ کاراکتر شامل حرف و عدد";
   if (code === "email_not_confirmed" || /not confirmed/i.test(msg))
     return "ایمیلت هنوز تایید نشده — کد تایید را وارد کن";
   if (code === "invalid_credentials" || /invalid login credentials/i.test(msg))
@@ -254,7 +265,7 @@ export function AuthModal() {
     e.preventDefault();
     setError(null);
     if (!EMAIL_RE.test(email)) return setError("ایمیل معتبر نیست");
-    if (password.length < 6) return setError("رمز عبور باید حداقل ۶ کاراکتر باشد");
+    if (password.length < 6) return setError("رمز عبور را وارد کن");
     setBusy("login");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(null);
@@ -278,7 +289,8 @@ export function AuthModal() {
     e.preventDefault();
     setError(null);
     if (!EMAIL_RE.test(email)) return setError("ایمیل معتبر نیست");
-    if (password.length < 6) return setError("رمز عبور باید حداقل ۶ کاراکتر باشد");
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) return setError(pwProblem);
     if (password !== confirm) return setError("رمز عبور و تکرارش یکسان نیستند");
     setBusy("signup");
     const { data, error } = await supabase.auth.signUp({
@@ -379,7 +391,8 @@ export function AuthModal() {
     }
     const otp = code.replace(/\s/g, "");
     if (otp.length !== 6) return setError("کد ۶ رقمی را کامل وارد کن");
-    if (newPassword.length < 6) return setError("رمز جدید باید حداقل ۶ کاراکتر باشد");
+    const pwProblem = passwordProblem(newPassword);
+    if (pwProblem) return setError(pwProblem);
     if (newPassword !== newConfirm) return setError("رمز جدید و تکرارش یکسان نیستند");
     setBusy("reset");
     const { error: otpError } = await supabase.auth.verifyOtp({
@@ -551,7 +564,7 @@ export function AuthModal() {
                 <PasswordField
                   value={password}
                   onChange={setPassword}
-                  placeholder="حداقل ۶ کاراکتر"
+                  placeholder="حداقل ۸ کاراکتر شامل حرف و عدد"
                   autoComplete="new-password"
                 />
               </Field>
@@ -676,7 +689,7 @@ export function AuthModal() {
                 <PasswordField
                   value={newPassword}
                   onChange={setNewPassword}
-                  placeholder="حداقل ۶ کاراکتر"
+                  placeholder="حداقل ۸ کاراکتر شامل حرف و عدد"
                   autoComplete="new-password"
                 />
               </Field>

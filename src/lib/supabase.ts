@@ -15,7 +15,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_75gERTh3Ofelgn2HFyhZZA_cfx9YFRy
 
 /** where confirmation/recovery links should land (must also be whitelisted
  *  in Dashboard → Authentication → URL Configuration → Redirect URLs) */
-export const SITE_URL = "https://sahandmarami.github.io/remove-page/";
+export const SITE_URL = "https://removepage.kdns.fr/";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {

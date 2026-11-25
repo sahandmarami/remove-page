@@ -35,7 +35,9 @@ jobs:
       - name: Build static site
         run: bun run build:static
         env:
-          NEXT_PUBLIC_BASE_PATH: /remove-page
+          # custom domain serves the site at the ROOT (removepage.kdns.fr) —
+          # no basePath needed anymore
+          NEXT_PUBLIC_BASE_PATH: ""
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
