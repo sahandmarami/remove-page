@@ -84,24 +84,40 @@ export function AccountButton() {
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="panel-glass border-line rounded-2xl">
-        <DropdownMenuLabel className="text-xs font-bold text-soft">
-          حساب کاربری
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-line" />
-        <DropdownMenuLabel className="pb-2">
-          <span dir="ltr" className="block max-w-[14rem] truncate text-left text-xs font-extrabold">
-            {user.email}
-          </span>
-          <span className="text-[10px] font-bold text-neon">
-            {user.email_confirmed_at ? "ایمیل تایید شده" : "ایمیل تایید نشده"}
-          </span>
+      <DropdownMenuContent
+        align="end"
+        className="panel-glass border-line min-w-[15rem] rounded-2xl p-1.5 shadow-2xl"
+      >
+        <DropdownMenuLabel className="rounded-xl px-2 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="logo-ring grid h-10 w-10 shrink-0 place-items-center rounded-full p-[2px]">
+              <span className="metallic-gradient grid h-full w-full place-items-center rounded-full text-sm font-extrabold text-white">
+                {letter}
+              </span>
+            </span>
+            <span className="min-w-0">
+              <span
+                dir="ltr"
+                className="block max-w-[12rem] truncate text-left text-xs font-extrabold"
+              >
+                {user.email}
+              </span>
+              <span className="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-neon">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    user.email_confirmed_at ? "bg-neon" : "bg-amber-400"
+                  }`}
+                />
+                {user.email_confirmed_at ? "ایمیل تایید شده" : "ایمیل تایید نشده"}
+              </span>
+            </span>
+          </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-line" />
         <DropdownMenuItem
           disabled={busy}
           onClick={handleSignOut}
-          className="gap-2 rounded-xl text-xs font-bold text-destructive focus:text-destructive"
+          className="mt-1 gap-2 rounded-xl text-xs font-bold text-destructive focus:bg-destructive/10 focus:text-destructive"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />

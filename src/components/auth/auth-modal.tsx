@@ -126,7 +126,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="h-12 rounded-xl border-line bg-chip ps-10 pe-10 text-left text-sm transition-colors focus:border-metallic"
+        className="h-12 rounded-xl border-line bg-chip ps-10 pe-10 text-left text-sm transition-all hover:border-line-strong focus:border-metallic focus-visible:ring-4 focus-visible:ring-metallic/25"
       />
       {trailing && (
         <span className="absolute end-2 top-1/2 -translate-y-1/2">{trailing}</span>
@@ -148,7 +148,7 @@ function SubmitButton({
     <Button
       type="submit"
       disabled={busy}
-      className="metallic-gradient h-12 w-full rounded-2xl text-sm font-extrabold text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60"
+      className="btn-shine metallic-gradient h-12 w-full rounded-2xl text-sm font-extrabold text-white shadow-lg transition-all hover:brightness-110 hover:shadow-xl active:scale-[0.99] disabled:opacity-60"
     >
       {busy ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Icon className="h-4.5 w-4.5" />}
       {label}
@@ -436,7 +436,9 @@ export function AuthModal() {
         <DialogTitle className="sr-only">حساب کاربری Remove Page</DialogTitle>
 
         {/* brand hero band */}
-        <div className="metallic-gradient relative flex items-center gap-3 px-5 py-4">
+        <div className="metallic-gradient relative flex items-center gap-3 overflow-hidden px-5 py-4">
+          <span className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/15 blur-xl" />
+          <span className="pointer-events-none absolute -bottom-12 left-10 h-24 w-24 rounded-full bg-white/10 blur-lg" />
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 shadow-inner ring-1 ring-white/30">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${BP}/icon-192.png`} alt="" className="h-9 w-9 rounded-xl object-cover" width={36} height={36} />
@@ -611,7 +613,7 @@ export function AuthModal() {
                       <InputOTPSlot
                         key={i}
                         index={i}
-                        className="h-[3.25rem] w-10 rounded-xl border border-line bg-chip text-base font-extrabold first:rounded-xl last:rounded-xl data-[active=true]:border-metallic"
+                        className="h-[3.4rem] w-11 rounded-xl border border-line bg-chip text-base font-extrabold shadow-sm transition-all first:rounded-xl last:rounded-xl data-[active=true]:scale-105 data-[active=true]:border-metallic data-[active=true]:bg-violet-tint/40 data-[active=true]:ring-4 data-[active=true]:ring-metallic/25"
                       />
                     ))}
                   </InputOTPGroup>
