@@ -52,6 +52,12 @@ export interface BgRemovalOptions {
    * replaces the internal border sampling entirely.
    */
   bgClusters?: RGB[] | null;
+  /**
+   * Remove thin editor guide-lines (1-6px green/blue/red strokes drawn over
+   * the background) that the flood fill cannot eat because their color
+   * differs from the background. Default true.
+   */
+  removeGuideLines?: boolean;
 }
 
 export const DEFAULT_BG_OPTIONS: BgRemovalOptions = {
@@ -62,6 +68,7 @@ export const DEFAULT_BG_OPTIONS: BgRemovalOptions = {
   removeHoles: true,
   holeMaxPercent: 8,
   bgColorHint: null,
+  removeGuideLines: true,
 };
 
 export interface BgRemovalResult {
@@ -135,6 +142,250 @@ function fgConfidence(od: Uint8ClampedArray, p: number, clusters: RGB[]): number
   return minClusterDist([od[i], od[i + 1], od[i + 2]], clusters);
 }
 
+function isGreenDominant(r: number, g: number, b: number): boolean {
+  const other = Math.max(r, b);
+  return g - other > 12;
+}
+
+/**
+ * Green/teal cast test used for edge cleanup: green clearly above red and
+ * not below blue. Catches green guide strokes AND teal blends, while never
+ * firing on white/gray (r≈g≈b), blue, brown or skin colors.
+ */
+function isGreenish(r: number, g: number, b: number): boolean {
+  return g - r > 12 && g >= b;
+}
+
+/**
+ * THIN GUIDE-LINE REMOVAL.
+ *
+ * Editor sprite sheets often carry 1-6px guide strokes (green/blue/red
+ * lines) drawn over the background. Their color differs from the
+ * background, so the flood fill stops at them and they survive as ugly
+ * stripes that also block the fill from reaching the background beyond.
+ *
+ * A pixel sits ON a guide stroke when the already-removed background is
+ * reached within `strokeR` px on BOTH opposite sides of one axis (the
+ * stroke is thin in that axis) — a solid subject never satisfies this on
+ * its interior. Two extra guards keep real artwork intact:
+ *  - the pixel's color must be far from the subject's interior palette,
+ *    so thin swords/poles/hair strands in subject colors are never eaten;
+ *  - if the pass would remove more than `maxShare` of the image it is
+ *    reverted entirely (protects genuinely striped art).
+ */
+function removeThinGuideLines(
+  od: Uint8ClampedArray,
+  w: number,
+  h: number,
+  removed: Uint8Array,
+  clusters: RGB[],
+  tolerance: number,
+  guideMask: Uint8Array,
+  strokeR = 6,
+  maxShare = 0.12
+): number {
+  const total = w * h;
+  const R = Math.max(1, Math.min(strokeR, (w >> 1) - 1, (h >> 1) - 1));
+
+  // subject interior palette: opaque pixels whose whole 4-neighbourhood is
+  // kept — the true artwork colors that must never be removed
+  const buckets = new Map<number, { r: number; g: number; b: number; n: number }>();
+  for (let y = 1; y < h - 1; y += 2) {
+    for (let x = 1; x < w - 1; x += 2) {
+      const p = y * w + x;
+      if (removed[p] || od[p * 4 + 3] < 250) continue;
+      if (
+        removed[p - 1] || removed[p + 1] || removed[p - w] || removed[p + w] ||
+        od[(p - 1) * 4 + 3] < 250 || od[(p + 1) * 4 + 3] < 250 ||
+        od[(p - w) * 4 + 3] < 250 || od[(p + w) * 4 + 3] < 250
+      ) continue;
+      const i = p * 4;
+      const key = ((od[i] >> 4) << 8) | ((od[i + 1] >> 4) << 4) | (od[i + 2] >> 4);
+      const cur = buckets.get(key) ?? { r: 0, g: 0, b: 0, n: 0 };
+      cur.r += od[i]; cur.g += od[i + 1]; cur.b += od[i + 2]; cur.n += 1;
+      buckets.set(key, cur);
+    }
+  }
+  const palColors: RGB[] = [];
+  for (const c of buckets.values()) palColors.push([c.r / c.n, c.g / c.n, c.b / c.n]);
+
+  const rayHitsBg = (x: number, y: number, dx: number, dy: number): boolean => {
+    for (let s = 1; s <= R; s++) {
+      const nx = x + dx * s;
+      const ny = y + dy * s;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) return true; // frame edge = bg side
+      const np = ny * w + nx;
+      if (removed[np] || od[np * 4 + 3] < 8) return true;
+    }
+    return false;
+  };
+
+  const cand = new Uint8Array(total);
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      const p = row + x;
+      if (removed[p] || od[p * 4 + 3] < 8) continue;
+      const thinH = rayHitsBg(x, y, -1, 0) && rayHitsBg(x, y, 1, 0);
+      const thinV = thinH || (rayHitsBg(x, y, 0, -1) && rayHitsBg(x, y, 0, 1));
+      if (!thinV) continue;
+      // color guard: skip pixels that match the subject palette closely
+      const i = p * 4;
+      const px: RGB = [od[i], od[i + 1], od[i + 2]];
+      if (palColors.length > 0 && minClusterDist(px, palColors) <= Math.max(20, tolerance * 0.45))
+        continue;
+      cand[p] = 1;
+    }
+  }
+
+  let count = 0;
+  for (let p = 0; p < total; p++) if (cand[p]) count++;
+  if (count === 0 || count > total * maxShare) return 0;
+
+  // grow by 1px to swallow the anti-aliased halo of the stroke
+  const grown = new Uint8Array(cand);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      if (cand[p] || removed[p]) continue;
+      if (
+        (x > 0 && cand[p - 1]) || (x < w - 1 && cand[p + 1]) ||
+        (y > 0 && cand[p - w]) || (y < h - 1 && cand[p + w])
+      ) {
+        const i = p * 4;
+        if (od[i + 3] < 250 && minClusterDist([od[i], od[i + 1], od[i + 2]], clusters) > tolerance * 1.4)
+          grown[p] = 1; // only semi-transparent blends far from bg
+      }
+    }
+  }
+
+  let n = 0;
+  for (let p = 0; p < total; p++) {
+    if (grown[p]) {
+      od[p * 4 + 3] = 0;
+      removed[p] = 1;
+      guideMask[p] = 1;
+      n++;
+    }
+  }
+  return n;
+}
+
+/**
+ * GUIDE HALO EROSION — guide strokes are often accompanied by a subtle
+ * light/dark band (selection glow) a few px wide that is beyond flood
+ * tolerance and fenced by the Sobel barrier. Starting from the pixels the
+ * guide-line pass removed, neutral low-saturation shades close to the
+ * background are eroded outward over a few iterations. Solid artwork stops
+ * the erosion because its colors are either saturated or far from bg.
+ */
+function erodeGuideHalo(
+  od: Uint8ClampedArray,
+  w: number,
+  h: number,
+  removed: Uint8Array,
+  guideMask: Uint8Array,
+  clusters: RGB[],
+  tolerance: number,
+  iters = 4
+): number {
+  const total = w * h;
+  let count = 0;
+  let seeds = guideMask;
+  for (let it = 0; it < iters; it++) {
+    const next = new Uint8Array(total);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = y * w + x;
+        if (removed[p] || seeds[p]) continue;
+        const nearSeed =
+          (x > 0 && seeds[p - 1]) || (x < w - 1 && seeds[p + 1]) ||
+          (y > 0 && seeds[p - w]) || (y < h - 1 && seeds[p + w]);
+        if (!nearSeed) continue;
+        const i = p * 4;
+        if (od[i + 3] < 8) continue;
+        const r = od[i], g = od[i + 1], b = od[i + 2];
+        const mx = Math.max(r, g, b);
+        const mn = Math.min(r, g, b);
+        if (mx - mn > 14) continue; // saturated = artwork
+        if (minClusterDist([r, g, b], clusters) > tolerance * 1.8) continue;
+        next[p] = 1;
+      }
+    }
+    let n = 0;
+    for (let p = 0; p < total; p++) {
+      if (next[p]) {
+        od[p * 4 + 3] = 0;
+        removed[p] = 1;
+        n++;
+      }
+    }
+    count += n;
+    if (n === 0) break;
+    seeds = next;
+  }
+  return count;
+}
+
+/**
+ * HIDDEN BACKGROUND SHADES — backgrounds often carry subtle neutral
+ * variants (wall stripes, panel shades, vignetting) whose distance from the
+ * main bg color exceeds the tolerance, so the flood fill stops at them and
+ * gray stripes survive next to the subject. This scans the border band for
+ * KEPT low-saturation pixels that form a coherent new shade on at least 2
+ * of the 4 edges, and returns them as extra background clusters. Subject
+ * colors are protected by the saturation filter (gray clothing on 1 edge
+ * never qualifies).
+ */
+function discoverHiddenBgShades(
+  od: Uint8ClampedArray,
+  w: number,
+  h: number,
+  removed: Uint8Array,
+  clusters: RGB[],
+  baseClusters: RGB[],
+  tolerance: number
+): RGB[] {
+  const band = 3;
+  interface Acc { r: number; g: number; b: number; n: number; edges: number }
+  const buckets = new Map<number, Acc>();
+  const add = (x: number, y: number, edge: number) => {
+    const p = y * w + x;
+    if (removed[p]) return;
+    const i = p * 4;
+    if (od[i + 3] < 8) return;
+    const r = od[i], g = od[i + 1], b = od[i + 2];
+    if (Math.max(r, g, b) - Math.min(r, g, b) > 12) return; // neutral shades only
+    // distance is measured against the ORIGINAL clusters only, so the
+    // search cannot chain-walk toward dark subject colors (outlines, hair)
+    const d = minClusterDist([r, g, b], baseClusters);
+    if (d <= tolerance || d > 80) return; // must be a genuinely NEW shade
+    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const cur = buckets.get(key) ?? { r: 0, g: 0, b: 0, n: 0, edges: 0 };
+    cur.r += r; cur.g += g; cur.b += b; cur.n += 1;
+    cur.edges |= 1 << edge;
+    buckets.set(key, cur);
+  };
+  const bb = Math.min(band, h >> 1);
+  const bw = Math.min(band, w >> 1);
+  for (let y = 0; y < bb; y++)
+    for (let x = 0; x < w; x++) { add(x, y, 0); add(x, h - 1 - y, 1); }
+  for (let x = 0; x < bw; x++)
+    for (let y = 0; y < h; y++) { add(x, y, 2); add(w - 1 - x, y, 3); }
+
+  const out: RGB[] = [];
+  for (const c of buckets.values()) {
+    if (c.n < 24) continue;
+    const edges = [c.edges & 1, c.edges & 2, c.edges & 4, c.edges & 8].filter(Boolean).length;
+    if (edges < 2) continue;
+    const mean: RGB = [c.r / c.n, c.g / c.n, c.b / c.n];
+    if (minClusterDist(mean, clusters) <= tolerance + 2) continue;
+    out.push(mean);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 /**
  * Closed-form boundary matting for one boundary pixel:
  * alpha = clamp( dot(px-bg, fg-bg) / |fg-bg|^2 ), 0..1
@@ -166,6 +417,8 @@ function matteBoundaryPixel(
   }
   od[i + 3] = a;
   if (a >= 250) return; // fully opaque, keep original color
+  if (t < 0.15) return; // nearly pure bg: un-mixing amplifies noise into
+  // wild colors — keep the (bg-like) original blend instead
 
   // un-mix: fg = bg + (px - bg) / t   (guard tiny t)
   const inv = Math.min(1 / Math.max(t, 0.12), 8);
@@ -256,52 +509,83 @@ export function removeBackground(
   for (let p = 0; p < total; p++) barrier[p] = mag[p] > opts.edgeBarrier ? 1 : 0;
 
   // --- edge-seeded flood fill with barrier + multi-cluster tolerance ---
+  // Re-runnable: after hidden background shades are discovered the fill is
+  // repeated with the expanded cluster set (visited/removed persist).
   const removed = new Uint8Array(total);
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
-  let head = 0;
-  let tail = 0;
 
-  const trySeed = (p: number) => {
-    if (visited[p] || barrier[p]) return;
-    const i = p * 4;
-    if (od[i + 3] < 8) {
-      visited[p] = 1;
-      removed[p] = 1; // already transparent counts as removed
-      return;
+  const flood = () => {
+    let head = 0;
+    let tail = 0;
+    const trySeed = (p: number) => {
+      if (visited[p] || barrier[p]) return;
+      const i = p * 4;
+      if (od[i + 3] < 8) {
+        visited[p] = 1;
+        removed[p] = 1; // already transparent counts as removed
+        return;
+      }
+      if (minClusterDist([od[i], od[i + 1], od[i + 2]], clusters) <= opts.tolerance) {
+        visited[p] = 1;
+        removed[p] = 1;
+        queue[tail++] = p;
+      }
+    };
+
+    for (let x = 0; x < w; x++) {
+      trySeed(x);
+      trySeed((h - 1) * w + x);
     }
-    if (minClusterDist([od[i], od[i + 1], od[i + 2]], clusters) <= opts.tolerance) {
-      visited[p] = 1;
-      removed[p] = 1;
-      queue[tail++] = p;
+    for (let y = 0; y < h; y++) {
+      trySeed(y * w);
+      trySeed(y * w + w - 1);
+    }
+
+    while (head < tail) {
+      const p = queue[head++];
+      const x = p % w;
+      const y = (p - x) / w;
+      if (x > 0) trySeed(p - 1);
+      if (x < w - 1) trySeed(p + 1);
+      if (y > 0) trySeed(p - w);
+      if (y < h - 1) trySeed(p + w);
     }
   };
-
-  for (let x = 0; x < w; x++) {
-    trySeed(x);
-    trySeed((h - 1) * w + x);
-  }
-  for (let y = 0; y < h; y++) {
-    trySeed(y * w);
-    trySeed(y * w + w - 1);
-  }
-
-  while (head < tail) {
-    const p = queue[head++];
-    const x = p % w;
-    const y = (p - x) / w;
-    if (x > 0) trySeed(p - 1);
-    if (x < w - 1) trySeed(p + 1);
-    if (y > 0) trySeed(p - w);
-    if (y < h - 1) trySeed(p + w);
-  }
+  flood();
 
   let removedCount = 0;
-  for (let p = 0; p < total; p++) {
-    if (removed[p]) {
-      od[p * 4 + 3] = 0;
-      removedCount += 1;
+  const recountRemoved = () => {
+    removedCount = 0;
+    for (let p = 0; p < total; p++) {
+      if (removed[p]) {
+        od[p * 4 + 3] = 0;
+        removedCount += 1;
+      }
     }
+  };
+  recountRemoved();
+
+  // --- thin editor guide-lines (green/blue/red strokes over the bg) ---
+  const guideMask = new Uint8Array(total);
+  const baseClusters = clusters.slice();
+  if (opts.removeGuideLines) {
+    removedCount += removeThinGuideLines(od, w, h, removed, clusters, opts.tolerance, guideMask);
+
+    // hidden neutral background shades (wall stripes / panel tones): discover
+    // from kept border-band pixels, add as clusters, re-flood (2 rounds)
+    for (let round = 0; round < 2; round++) {
+      const extra = discoverHiddenBgShades(od, w, h, removed, clusters, baseClusters, opts.tolerance);
+      if (extra.length === 0) break;
+      clusters.push(...extra);
+      const before = removedCount;
+      flood();
+      recountRemoved();
+      if (removedCount === before) break;
+    }
+
+    // guide stroke glow bands (selection highlight around the strokes)
+    removedCount += erodeGuideHalo(od, w, h, removed, guideMask, clusters, opts.tolerance);
   }
 
   // --- enclosed internal holes (between arms/legs) with area cap ---
@@ -318,12 +602,15 @@ export function removeBackground(
       holeVisited[p] = 1;
       queue[hTail++] = p;
       let touchesBorder = false;
+      let maxConf = 0;
       while (hHead < hTail) {
         const cur = queue[hHead++];
         region.push(cur);
         const cx = cur % w;
         const cy = (cur - cx) / w;
         if (cx === 0 || cy === 0 || cx === w - 1 || cy === h - 1) touchesBorder = true;
+        const conf = fgConfidence(od, cur, clusters);
+        if (conf > maxConf) maxConf = conf;
         const nb = [cx > 0 ? cur - 1 : -1, cx < w - 1 ? cur + 1 : -1, cy > 0 ? cur - w : -1, cy < h - 1 ? cur + w : -1];
         for (const n of nb) {
           if (n < 0 || holeVisited[n] || removed[n]) continue;
@@ -333,15 +620,67 @@ export function removeBackground(
         }
       }
 
-      // Only enclosed (not touching border) regions under the area cap are
-      // punched out — this is what keeps garments intact.
-      if (!touchesBorder && region.length <= cap) {
+      // Enclosed (not touching border) regions under the area cap are punched
+      // out — this is what keeps garments intact. Regions that DO touch the
+      // border are only punched when they are essentially pure background
+      // color (patches fenced off by guide lines right up to the frame edge).
+      const underCap = region.length <= cap;
+      if (underCap && (!touchesBorder || maxConf <= opts.tolerance * 0.3)) {
         for (const rp of region) {
           od[rp * 4 + 3] = 0;
           removed[rp] = 1;
         }
         removedCount += region.length;
       }
+    }
+  }
+
+  // --- fringe cleanup: guide-line residue + near-bg halo on the cut edge ---
+  // Green/teal-tinted pixels hugging the removed area (guide strokes that
+  // ran parallel to the silhouette, green-contaminated edges) are punched
+  // out over a few iterations; near-background boundary pixels the edge
+  // barrier protected go too, so no thin line or halo survives next to the
+  // subject. Skipped when the subject itself is predominantly green
+  // (green-screen artwork).
+  let greenSubject = false;
+  {
+    let opaque = 0;
+    let greenPx = 0;
+    for (let p = 0; p < total; p += 3) {
+      const i = p * 4;
+      if (od[i + 3] < 128 || removed[p]) continue;
+      opaque++;
+      if (isGreenDominant(od[i], od[i + 1], od[i + 2])) greenPx++;
+    }
+    greenSubject = opaque > 200 && greenPx / opaque > 0.2;
+    if (!greenSubject) {
+      let punched = 0;
+      for (let it = 0; it < 3; it++) {
+        let n = 0;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            if (removed[p]) continue;
+            const i = p * 4;
+            if (od[i + 3] < 8) continue;
+            const nearRemoved =
+              (x > 0 && removed[p - 1]) || (x < w - 1 && removed[p + 1]) ||
+              (y > 0 && removed[p - w]) || (y < h - 1 && removed[p + w]);
+            if (!nearRemoved) continue;
+            const r = od[i], g = od[i + 1], b = od[i + 2];
+            const greenEdge = isGreenish(r, g, b);
+            const nearBg = minClusterDist([r, g, b], clusters) <= opts.tolerance * 0.75;
+            if (greenEdge || nearBg) {
+              od[i + 3] = 0;
+              removed[p] = 1;
+              n++;
+            }
+          }
+        }
+        punched += n;
+        if (n === 0) break;
+      }
+      removedCount += punched;
     }
   }
 
@@ -426,6 +765,68 @@ export function removeBackground(
         }
       }
     }
+  }
+
+  // --- green guide residue cleanup (non-green subjects only) ---
+  // Runs after matting/feather so it sees final alpha. Three tiers:
+  //  1. faint green ghosts (alpha < 96): guide-stroke anti-aliasing left in
+  //     transparent zones / over the outline — imperceptible, punch out.
+  //  2. strong green specks (guide strokes that crossed the sprite): repaint
+  //     from the surrounding non-green pixels — seamless on pixel art.
+  //  3. mild green casts: pull the green channel toward the others.
+  if (!greenSubject) {
+    const specks: number[] = [];
+    for (let p = 0; p < total; p++) {
+      if (removed[p]) continue;
+      const i = p * 4;
+      const a = od[i + 3];
+      if (a === 0) continue;
+      const r = od[i], g = od[i + 1], b = od[i + 2];
+      if (!isGreenish(r, g, b)) continue;
+      const other = Math.max(r, b);
+      if (a < 96) {
+        od[i + 3] = 0;
+        removed[p] = 1;
+      } else if (g - other > 30) {
+        specks.push(p);
+      } else if (g - other > 14) {
+        od[i + 1] = other + (g - other) * 0.15;
+      }
+    }
+    // inpaint strong specks from their non-green neighborhood (5x5)
+    for (const p of specks) {
+      const x = p % w;
+      const y = (p - x) / w;
+      let sr = 0, sg = 0, sb = 0, n = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= h) continue;
+        for (let dx = -2; dx <= 2; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          if (nx < 0 || nx >= w) continue;
+          const np = ny * w + nx;
+          if (removed[np]) continue;
+          const ni = np * 4;
+          if (od[ni + 3] < 96) continue;
+          if (isGreenish(od[ni], od[ni + 1], od[ni + 2])) continue;
+          sr += od[ni]; sg += od[ni + 1]; sb += od[ni + 2]; n++;
+        }
+      }
+      if (n >= 3) {
+        const i = p * 4;
+        od[i] = sr / n;
+        od[i + 1] = sg / n;
+        od[i + 2] = sb / n;
+      }
+    }
+  }
+
+  // FINAL: the feather blur ignores the removed mask, so removed pixels
+  // adjacent to the subject get their alpha blurred back up (the classic
+  // faint halo). Re-zero every removed pixel as the last step.
+  for (let p = 0; p < total; p++) {
+    if (removed[p]) od[p * 4 + 3] = 0;
   }
 
   return {
