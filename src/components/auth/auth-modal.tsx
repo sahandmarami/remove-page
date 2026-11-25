@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AtSign,
+  CheckCircle2,
+  Eye,
+  EyeOff,
   KeyRound,
   Loader2,
   LogIn,
@@ -15,8 +18,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -57,8 +58,11 @@ function faAuthError(err: unknown): string {
 
 const RESEND_COOLDOWN = 60;
 
+/** static-export basePath — empty in dev, "/remove-page" on GitHub Pages */
+const BP = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 /* ------------------------------------------------------------------ */
-/* small building blocks                                               */
+/* building blocks                                                     */
 /* ------------------------------------------------------------------ */
 
 function Field({
@@ -71,13 +75,51 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block space-y-1.5">
-      <span className="flex items-center gap-1.5 text-xs font-bold text-soft">
+    <div className="space-y-1.5">
+      <span className="flex items-center gap-1.5 text-[11px] font-bold text-soft">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </span>
       {children}
-    </label>
+    </div>
+  );
+}
+
+function TextField({
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  icon,
+  trailing,
+}: {
+  type?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoComplete?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted">
+        <icon.icon className="h-4 w-4" />
+      </span>
+      <Input
+        dir="ltr"
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className="h-12 rounded-xl border-line bg-chip ps-10 pe-10 text-left text-sm transition-colors focus:border-metallic"
+      />
+      {trailing && (
+        <span className="absolute end-2 top-1/2 -translate-y-1/2">{trailing}</span>
+      )}
+    </div>
   );
 }
 
@@ -94,11 +136,67 @@ function SubmitButton({
     <Button
       type="submit"
       disabled={busy}
-      className="metallic-gradient h-11 w-full rounded-xl text-sm font-extrabold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
+      className="metallic-gradient h-12 w-full rounded-2xl text-sm font-extrabold text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60"
     >
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+      {busy ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Icon className="h-4.5 w-4.5" />}
       {label}
     </Button>
+  );
+}
+
+function ModeHeader({
+  icon: Icon,
+  title,
+  desc,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <h3 className="flex items-center gap-2 text-sm font-extrabold">
+        <Icon className="h-4 w-4 text-metallic" />
+        {title}
+      </h3>
+      <p className="text-[11px] leading-5 text-soft">{desc}</p>
+    </div>
+  );
+}
+
+/** password input with visibility toggle */
+function PasswordField({
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoComplete?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <TextField
+      type={show ? "text" : "password"}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      autoComplete={autoComplete}
+      icon={KeyRound}
+      trailing={
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setShow((s) => !s)}
+          aria-label={show ? "پنهان کردن رمز" : "نمایش رمز"}
+          className="rounded-lg p-1.5 text-soft transition-colors hover:bg-chip hover:text-foreground"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      }
+    />
   );
 }
 
@@ -303,310 +401,319 @@ export function AuthModal() {
 
   /* ------------------------------ views ------------------------------ */
 
-  let title = "";
-  let desc = "";
+  const isAccount = authMode === "login" || authMode === "signup";
 
-  if (authMode === "login") {
-    title = "ورود به حساب";
-    desc = "برای استفاده از حساب کاربری وارد شو";
-  } else if (authMode === "signup") {
-    title = "ساخت حساب جدید";
-    desc = "با ایمیل ثبت‌نام کن؛ یک کد تایید برایت می‌فرستیم";
-  } else if (authMode === "verify") {
-    title = "تایید ایمیل";
-    desc = pendingEmail
-      ? `کد ۶ رقمی ارسال‌شده به ${pendingEmail} را وارد کن`
-      : "کد تایید را وارد کن";
+  let innerTitle = "";
+  let innerDesc = "";
+  if (authMode === "verify") {
+    innerTitle = "تایید ایمیل";
+    innerDesc = "کد ۶ رقمی که برایت فرستادیم را وارد کن";
   } else if (authMode === "forgot") {
-    title = "بازیابی رمز عبور";
-    desc = "ایمیلت را وارد کن تا کد بازیابی بفرستیم";
-  } else {
-    title = "تعیین رمز جدید";
-    desc = pendingEmail
-      ? `کد ارسال‌شده به ${pendingEmail} و رمز جدیدت را وارد کن`
-      : "کد بازیابی و رمز جدیدت را وارد کن";
+    innerTitle = "بازیابی رمز عبور";
+    innerDesc = "ایمیلت را بزن تا کد بازیابی برایت بفرستیم";
+  } else if (authMode === "reset") {
+    innerTitle = "تعیین رمز جدید";
+    innerDesc = "کد بازیابی و رمز جدیدت را وارد کن";
   }
 
   return (
     <Dialog open={authOpen} onOpenChange={(o) => (o ? null : closeAuth())}>
-      <DialogContent className="max-w-sm panel-glass border-line rounded-3xl">
-        <DialogHeader className="text-right">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <span className="metallic-gradient flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-sm">
-              {authMode === "login" || authMode === "forgot" ? (
-                <LogIn className="h-4 w-4" />
-              ) : authMode === "verify" || authMode === "reset" ? (
-                <ShieldCheck className="h-4 w-4" />
-              ) : (
-                <UserPlus className="h-4 w-4" />
-              )}
-            </span>
-            {title}
-          </DialogTitle>
-          <DialogDescription className="text-xs leading-5 text-soft">
-            {desc}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-[25rem] gap-0 overflow-hidden panel-glass border-line p-0 rounded-3xl" showCloseButton>
+        <DialogTitle className="sr-only">حساب کاربری Remove Page</DialogTitle>
 
-        {error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold leading-5 text-destructive">
-            {error}
+        {/* brand hero band */}
+        <div className="metallic-gradient flex items-center gap-3 px-5 py-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 shadow-inner ring-1 ring-white/30">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${BP}/icon-192.png`} alt="" className="h-9 w-9 rounded-xl object-cover" width={36} height={36} />
+          </span>
+          <div className="min-w-0">
+            <p className="select-none text-base font-extrabold tracking-wide text-white" dir="ltr">
+              Remove&nbsp;Page
+            </p>
+            <p className="text-[11px] font-bold leading-4 text-white/85">
+              حساب رایگان — ابزارها همیشه در دسترس تو
+            </p>
           </div>
-        )}
+        </div>
 
-        {/* ------------------------------ login ------------------------------ */}
-        {authMode === "login" && (
-          <form onSubmit={doLogin} className="space-y-3">
-            <Field icon={AtSign} label="ایمیل">
-              <Input
-                dir="ltr"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <Field icon={KeyRound} label="رمز عبور">
-              <Input
-                dir="ltr"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <SubmitButton busy={busy === "login"} icon={LogIn} label="ورود" />
-            <div className="flex items-center justify-between pt-0.5 text-xs text-soft">
+        <div className="space-y-4 p-5">
+          {/* segmented tabs for login/signup */}
+          {isAccount && (
+            <div className="grid grid-cols-2 gap-1 rounded-2xl border border-line bg-chip p-1">
               <button
                 type="button"
-                className="font-bold hover:text-metallic hover:underline"
-                onClick={() => switchMode("forgot")}
-              >
-                رمزت یادت رفته؟
-              </button>
-              <button
-                type="button"
-                className="font-bold text-metallic hover:underline"
-                onClick={() => switchMode("signup")}
-              >
-                حساب نداری؟ ثبت‌نام
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ------------------------------ signup ------------------------------ */}
-        {authMode === "signup" && (
-          <form onSubmit={doSignup} className="space-y-3">
-            <Field icon={AtSign} label="ایمیل">
-              <Input
-                dir="ltr"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <Field icon={KeyRound} label="رمز عبور">
-              <Input
-                dir="ltr"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="حداقل ۶ کاراکتر"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <Field icon={KeyRound} label="تکرار رمز عبور">
-              <Input
-                dir="ltr"
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="••••••••"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <SubmitButton busy={busy === "signup"} icon={UserPlus} label="ثبت‌نام" />
-            <p className="text-center text-xs text-soft">
-              قبلاً ثبت‌نام کردی؟{" "}
-              <button
-                type="button"
-                className="font-bold text-metallic hover:underline"
                 onClick={() => switchMode("login")}
+                className={cn(
+                  "flex h-9 items-center justify-center gap-1.5 rounded-xl text-xs font-extrabold transition-all",
+                  authMode === "login"
+                    ? "metallic-gradient text-white shadow-md"
+                    : "text-soft hover:text-foreground active:scale-95"
+                )}
               >
+                <LogIn className="h-3.5 w-3.5" />
                 ورود
               </button>
-            </p>
-          </form>
-        )}
-
-        {/* ------------------------------ verify ------------------------------ */}
-        {authMode === "verify" && (
-          <div className="space-y-3">
-            <div dir="ltr" className="flex justify-center py-1">
-              <InputOTP maxLength={6} value={code} onChange={setCode}>
-                <InputOTPGroup className="gap-2">
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <InputOTPSlot
-                      key={i}
-                      index={i}
-                      className="h-12 w-10 rounded-xl border border-line bg-chip text-base font-extrabold first:rounded-xl last:rounded-xl"
-                    />
-                  ))}
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-            <SubmitButton
-              busy={busy === "verify"}
-              icon={MailCheck}
-              label="تایید و ادامه"
-            />
-            <div className="flex items-center justify-between text-xs">
               <button
                 type="button"
-                disabled={resendIn > 0 || busy === "resend"}
-                onClick={doResend}
-                className={cn(
-                  "flex items-center gap-1 font-bold",
-                  resendIn > 0 ? "cursor-not-allowed text-muted" : "text-metallic hover:underline"
-                )}
-              >
-                {busy === "resend" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Send className="h-3.5 w-3.5" />
-                )}
-                {resendIn > 0 ? `ارسال دوباره تا ${resendIn} ثانیه` : "ارسال دوباره کد"}
-              </button>
-              <button
-                type="button"
-                className="font-bold text-soft hover:text-metallic hover:underline"
                 onClick={() => switchMode("signup")}
-              >
-                ویرایش ایمیل
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ------------------------------ forgot ------------------------------ */}
-        {authMode === "forgot" && (
-          <form onSubmit={doForgot} className="space-y-3">
-            <Field icon={AtSign} label="ایمیل">
-              <Input
-                dir="ltr"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <SubmitButton busy={busy === "forgot"} icon={Send} label="ارسال کد بازیابی" />
-            <p className="text-center text-xs text-soft">
-              <button
-                type="button"
-                className="font-bold text-metallic hover:underline"
-                onClick={() => switchMode("login")}
-              >
-                بازگشت به ورود
-              </button>
-            </p>
-          </form>
-        )}
-
-        {/* ------------------------------ reset ------------------------------ */}
-        {authMode === "reset" && (
-          <form onSubmit={doReset} className="space-y-3">
-            <Field icon={ShieldCheck} label="کد بازیابی ۶ رقمی">
-              <Input
-                dir="ltr"
-                inputMode="numeric"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
-                placeholder="──────"
-                className="h-11 rounded-xl border-line bg-chip text-center text-base font-extrabold tracking-[0.4em]"
-                required
-              />
-            </Field>
-            <Field icon={KeyRound} label="رمز جدید">
-              <Input
-                dir="ltr"
-                type="password"
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="حداقل ۶ کاراکتر"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <Field icon={KeyRound} label="تکرار رمز جدید">
-              <Input
-                dir="ltr"
-                type="password"
-                autoComplete="new-password"
-                value={newConfirm}
-                onChange={(e) => setNewConfirm(e.target.value)}
-                placeholder="••••••••"
-                className="h-11 rounded-xl border-line bg-chip text-left text-sm"
-                required
-              />
-            </Field>
-            <SubmitButton busy={busy === "reset"} icon={KeyRound} label="ثبت رمز جدید" />
-            <div className="flex items-center justify-between text-xs">
-              <button
-                type="button"
-                disabled={resendIn > 0 || busy === "resend"}
-                onClick={async () => {
-                  if (!pendingEmail || resendIn > 0) return;
-                  setBusy("resend");
-                  const { error } = await supabase.auth.resetPasswordForEmail(pendingEmail, {
-                    redirectTo: SITE_URL,
-                  });
-                  setBusy(null);
-                  if (error) return setError(faAuthError(error));
-                  setResendIn(RESEND_COOLDOWN);
-                  toast.success("کد جدید ارسال شد");
-                }}
                 className={cn(
-                  "flex items-center gap-1 font-bold",
-                  resendIn > 0 ? "cursor-not-allowed text-muted" : "text-metallic hover:underline"
+                  "flex h-9 items-center justify-center gap-1.5 rounded-xl text-xs font-extrabold transition-all",
+                  authMode === "signup"
+                    ? "metallic-gradient text-white shadow-md"
+                    : "text-soft hover:text-foreground active:scale-95"
                 )}
               >
-                <Send className="h-3.5 w-3.5" />
-                {resendIn > 0 ? `ارسال دوباره تا ${resendIn} ثانیه` : "ارسال دوباره کد"}
-              </button>
-              <button
-                type="button"
-                className="font-bold text-soft hover:text-metallic hover:underline"
-                onClick={() => switchMode("forgot")}
-              >
-                ویرایش ایمیل
+                <UserPlus className="h-3.5 w-3.5" />
+                ثبت‌نام
               </button>
             </div>
-          </form>
-        )}
+          )}
+
+          {/* context header for verify / forgot / reset */}
+          {!isAccount && <ModeHeader
+            icon={authMode === "verify" ? MailCheck : ShieldCheck}
+            title={innerTitle}
+            desc={innerDesc}
+          />}
+
+          {error && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] font-bold leading-5 text-destructive">
+              <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
+              {error}
+            </div>
+          )}
+
+          {/* ------------------------------ login ------------------------------ */}
+          {authMode === "login" && (
+            <form onSubmit={doLogin} className="space-y-3.5">
+              <Field icon={AtSign} label="ایمیل">
+                <TextField
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  icon={AtSign}
+                />
+              </Field>
+              <Field icon={KeyRound} label="رمز عبور">
+                <PasswordField
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+              </Field>
+              <SubmitButton busy={busy === "login"} icon={LogIn} label="ورود به حساب" />
+              <div className="flex items-center justify-between pt-0.5 text-[11px] text-soft">
+                <button
+                  type="button"
+                  className="font-bold hover:text-metallic hover:underline"
+                  onClick={() => switchMode("forgot")}
+                >
+                  رمزت یادت رفته؟
+                </button>
+                <button
+                  type="button"
+                  className="font-bold text-metallic hover:underline"
+                  onClick={() => switchMode("signup")}
+                >
+                  حساب نداری؟ ثبت‌نام کن
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ------------------------------ signup ------------------------------ */}
+          {authMode === "signup" && (
+            <form onSubmit={doSignup} className="space-y-3.5">
+              <Field icon={AtSign} label="ایمیل">
+                <TextField
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  icon={AtSign}
+                />
+              </Field>
+              <Field icon={KeyRound} label="رمز عبور">
+                <PasswordField
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="حداقل ۶ کاراکتر"
+                  autoComplete="new-password"
+                />
+              </Field>
+              <Field icon={KeyRound} label="تکرار رمز عبور">
+                <PasswordField
+                  value={confirm}
+                  onChange={setConfirm}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+              </Field>
+              <SubmitButton busy={busy === "signup"} icon={UserPlus} label="ساخت حساب رایگان" />
+              <p className="text-center text-[11px] text-soft">
+                قبلاً ثبت‌نام کردی؟{" "}
+                <button
+                  type="button"
+                  className="font-bold text-metallic hover:underline"
+                  onClick={() => switchMode("login")}
+                >
+                  وارد شو
+                </button>
+              </p>
+            </form>
+          )}
+
+          {/* ------------------------------ verify ------------------------------ */}
+          {authMode === "verify" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-line bg-chip px-3 py-2 text-[11px] font-bold">
+                <CheckCircle2 className="h-3.5 w-3.5 text-neon" />
+                <span dir="ltr" className="max-w-[11rem] truncate text-left">{pendingEmail ?? "—"}</span>
+                <button
+                  type="button"
+                  className="mr-auto shrink-0 text-metallic hover:underline"
+                  onClick={() => switchMode("signup")}
+                >
+                  ویرایش
+                </button>
+              </div>
+              <div dir="ltr" className="flex justify-center py-1">
+                <InputOTP maxLength={6} value={code} onChange={setCode}>
+                  <InputOTPGroup className="gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <InputOTPSlot
+                        key={i}
+                        index={i}
+                        className="h-[3.25rem] w-10 rounded-xl border border-line bg-chip text-base font-extrabold first:rounded-xl last:rounded-xl data-[active=true]:border-metallic"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              <SubmitButton
+                busy={busy === "verify"}
+                icon={MailCheck}
+                label="تایید و ورود"
+              />
+              <div className="flex items-center justify-between text-[11px]">
+                <button
+                  type="button"
+                  disabled={resendIn > 0 || busy === "resend"}
+                  onClick={doResend}
+                  className={cn(
+                    "flex items-center gap-1 font-bold",
+                    resendIn > 0 ? "cursor-not-allowed text-muted" : "text-metallic hover:underline"
+                  )}
+                >
+                  {busy === "resend" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  {resendIn > 0 ? `ارسال دوباره تا ${resendIn} ثانیه` : "ارسال دوباره کد"}
+                </button>
+                <span className="text-muted">اسپم را هم چک کن</span>
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------ forgot ------------------------------ */}
+          {authMode === "forgot" && (
+            <form onSubmit={doForgot} className="space-y-3.5">
+              <Field icon={AtSign} label="ایمیل">
+                <TextField
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  icon={AtSign}
+                />
+              </Field>
+              <SubmitButton busy={busy === "forgot"} icon={Send} label="ارسال کد بازیابی" />
+              <p className="text-center text-[11px] text-soft">
+                <button
+                  type="button"
+                  className="font-bold text-metallic hover:underline"
+                  onClick={() => switchMode("login")}
+                >
+                  بازگشت به ورود
+                </button>
+              </p>
+            </form>
+          )}
+
+          {/* ------------------------------ reset ------------------------------ */}
+          {authMode === "reset" && (
+            <form onSubmit={doReset} className="space-y-3.5">
+              <Field icon={ShieldCheck} label="کد بازیابی ۶ رقمی">
+                <Input
+                  dir="ltr"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="──────"
+                  className="h-12 rounded-xl border-line bg-chip text-center text-base font-extrabold tracking-[0.4em]"
+                  required
+                />
+              </Field>
+              <Field icon={KeyRound} label="رمز جدید">
+                <PasswordField
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  placeholder="حداقل ۶ کاراکتر"
+                  autoComplete="new-password"
+                />
+              </Field>
+              <Field icon={KeyRound} label="تکرار رمز جدید">
+                <PasswordField
+                  value={newConfirm}
+                  onChange={setNewConfirm}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+              </Field>
+              <SubmitButton busy={busy === "reset"} icon={KeyRound} label="ثبت رمز جدید" />
+              <div className="flex items-center justify-between text-[11px]">
+                <button
+                  type="button"
+                  disabled={resendIn > 0 || busy === "resend"}
+                  onClick={async () => {
+                    if (!pendingEmail || resendIn > 0) return;
+                    setBusy("resend");
+                    const { error } = await supabase.auth.resetPasswordForEmail(pendingEmail, {
+                      redirectTo: SITE_URL,
+                    });
+                    setBusy(null);
+                    if (error) return setError(faAuthError(error));
+                    setResendIn(RESEND_COOLDOWN);
+                    toast.success("کد جدید ارسال شد");
+                  }}
+                  className={cn(
+                    "flex items-center gap-1 font-bold",
+                    resendIn > 0 ? "cursor-not-allowed text-muted" : "text-metallic hover:underline"
+                  )}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {resendIn > 0 ? `ارسال دوباره تا ${resendIn} ثانیه` : "ارسال دوباره کد"}
+                </button>
+                <button
+                  type="button"
+                  className="font-bold text-soft hover:text-metallic hover:underline"
+                  onClick={() => switchMode("forgot")}
+                >
+                  ویرایش ایمیل
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Clapperboard, Eraser, Film, Scissors } from "lucide-react";
+import { Clapperboard, Eraser, Film, Loader2, Scissors } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountButton } from "@/components/auth/account-button";
+import { AuthGate } from "@/components/auth/auth-gate";
+import { useAuth } from "@/components/auth/auth-context";
 import { BgRemove } from "@/components/studio/bg-remove";
 import { SheetCutter } from "@/components/studio/sheet-cutter";
 import { VideoStudio } from "@/components/studio/video-studio";
@@ -25,6 +27,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function Home() {
   const [tab, setTab] = useState<TabId>("remove");
+  const { user, initializing } = useAuth();
   const frameCount = useFrameStore((s) => s.frames.length);
 
   return (
@@ -57,7 +60,7 @@ export default function Home() {
           </h1>
 
           <div className="mr-auto flex items-center gap-2">
-            {frameCount > 0 && (
+            {user && frameCount > 0 && (
               <span className="flex items-center gap-1 rounded-lg border border-line bg-chip px-2 py-1 text-xs font-bold text-soft tabular-nums">
                 {frameCount}
               </span>
@@ -70,31 +73,42 @@ export default function Home() {
 
       {/* main */}
       <main className="mx-auto w-full max-w-5xl flex-1 px-3 pb-6 pt-3 sm:px-4 sm:pt-4">
-        {/* segmented tool switcher */}
-        <nav className="mb-3 grid grid-cols-4 gap-1 rounded-2xl border border-line bg-surface p-1.5 sm:gap-2 sm:p-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              aria-pressed={tab === t.id}
-              className={cn(
-                "flex min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-bold transition-all sm:flex-row sm:justify-center sm:gap-2 sm:text-sm",
-                tab === t.id
-                  ? "metallic-gradient text-white shadow-md"
-                  : "text-soft hover:bg-chip hover:text-foreground active:scale-95"
-              )}
-            >
-              <t.icon className="h-4.5 w-4.5 shrink-0 sm:h-4 sm:w-4" />
-              <span className="truncate leading-4">{t.label}</span>
-            </button>
-          ))}
-        </nav>
+        {initializing ? (
+          <div className="flex flex-1 items-center justify-center py-28">
+            <Loader2 className="metallic-text h-7 w-7 animate-spin" />
+          </div>
+        ) : !user ? (
+          /* studio locked until signed in */
+          <AuthGate />
+        ) : (
+          <>
+            {/* segmented tool switcher */}
+            <nav className="mb-3 grid grid-cols-4 gap-1 rounded-2xl border border-line bg-surface p-1.5 sm:gap-2 sm:p-2">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  aria-pressed={tab === t.id}
+                  className={cn(
+                    "flex min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-bold transition-all sm:flex-row sm:justify-center sm:gap-2 sm:text-sm",
+                    tab === t.id
+                      ? "metallic-gradient text-white shadow-md"
+                      : "text-soft hover:bg-chip hover:text-foreground active:scale-95"
+                  )}
+                >
+                  <t.icon className="h-4.5 w-4.5 shrink-0 sm:h-4 sm:w-4" />
+                  <span className="truncate leading-4">{t.label}</span>
+                </button>
+              ))}
+            </nav>
 
-        {tab === "remove" && <BgRemove />}
-        {tab === "sheet" && <SheetCutter />}
-        {tab === "video" && <VideoStudio />}
-        {tab === "anim" && <Animator />}
+            {tab === "remove" && <BgRemove />}
+            {tab === "sheet" && <SheetCutter />}
+            {tab === "video" && <VideoStudio />}
+            {tab === "anim" && <Animator />}
+          </>
+        )}
       </main>
     </div>
   );

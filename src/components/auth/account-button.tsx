@@ -14,10 +14,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/components/auth/auth-context";
 
-/** header account widget: login button when signed out, user menu when in */
+/** header account widget: compact login button when signed out, avatar menu when in.
+ *  heights match ThemeToggle (h-10 mobile / h-9 desktop) so the header stays aligned */
 export function AccountButton() {
   const { user, initializing, openAuth, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
+
+  const shell =
+    "h-10 shrink-0 rounded-xl border border-line bg-chip text-soft backdrop-blur transition-colors hover:border-cyan-line hover:text-cyan-ink sm:h-9";
 
   if (initializing) {
     return (
@@ -26,7 +30,7 @@ export function AccountButton() {
         size="icon"
         disabled
         aria-label="در حال بررسی نشستی"
-        className="h-10 w-10 shrink-0 rounded-xl border border-line bg-chip text-soft sm:h-9 sm:w-9"
+        className={`${shell} w-10 sm:w-9`}
       >
         <UserRound className="h-4 w-4 opacity-50" />
       </Button>
@@ -39,10 +43,11 @@ export function AccountButton() {
         type="button"
         variant="secondary"
         onClick={() => openAuth("login")}
-        className="h-10 shrink-0 gap-1.5 rounded-xl border border-line bg-chip px-3 text-xs font-bold text-soft backdrop-blur transition-colors hover:border-cyan-line hover:text-cyan-ink sm:h-9 sm:text-sm"
+        className={`${shell} gap-1.5 px-2.5 text-[11px] font-extrabold sm:px-3 sm:text-xs`}
       >
         <LogIn className="h-4 w-4" />
-        ورود / ثبت‌نام
+        <span>ورود</span>
+        <span className="hidden sm:inline">/ ثبت‌نام</span>
       </Button>
     );
   }
@@ -66,12 +71,15 @@ export function AccountButton() {
           type="button"
           variant="secondary"
           aria-label="حساب کاربری"
-          className="h-10 shrink-0 gap-2 rounded-xl border border-line bg-chip px-2 backdrop-blur transition-colors hover:border-cyan-line sm:h-9 sm:px-2.5"
+          className={`${shell} gap-2 px-1.5 sm:px-2`}
         >
           <span className="metallic-gradient flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold text-white shadow-sm">
             {letter}
           </span>
-          <span dir="ltr" className="hidden max-w-[9rem] truncate text-xs font-bold text-soft sm:block">
+          <span
+            dir="ltr"
+            className="hidden max-w-[8rem] truncate text-left text-[11px] font-bold sm:block"
+          >
             {user.email}
           </span>
         </Button>
