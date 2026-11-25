@@ -14,6 +14,7 @@ import {
   Send,
   ShieldCheck,
   UserPlus,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -91,7 +92,7 @@ function TextField({
   onChange,
   placeholder,
   autoComplete,
-  icon,
+  icon: Icon,
   trailing,
 }: {
   type?: string;
@@ -105,7 +106,7 @@ function TextField({
   return (
     <div className="relative">
       <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted">
-        <icon.icon className="h-4 w-4" />
+        <Icon className="h-4 w-4" />
       </span>
       <Input
         dir="ltr"
@@ -418,11 +419,11 @@ export function AuthModal() {
 
   return (
     <Dialog open={authOpen} onOpenChange={(o) => (o ? null : closeAuth())}>
-      <DialogContent className="max-w-[25rem] gap-0 overflow-hidden panel-glass border-line p-0 rounded-3xl" showCloseButton>
+      <DialogContent className="max-w-[25rem] gap-0 overflow-hidden panel-glass border-line p-0 rounded-3xl" showCloseButton={false}>
         <DialogTitle className="sr-only">حساب کاربری Remove Page</DialogTitle>
 
         {/* brand hero band */}
-        <div className="metallic-gradient flex items-center gap-3 px-5 py-4">
+        <div className="metallic-gradient relative flex items-center gap-3 px-5 py-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 shadow-inner ring-1 ring-white/30">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${BP}/icon-192.png`} alt="" className="h-9 w-9 rounded-xl object-cover" width={36} height={36} />
@@ -435,6 +436,14 @@ export function AuthModal() {
               حساب رایگان — ابزارها همیشه در دسترس تو
             </p>
           </div>
+          <button
+            type="button"
+            onClick={closeAuth}
+            aria-label="بستن"
+            className="absolute end-3 top-3 rounded-full bg-black/20 p-1.5 text-white/90 transition-colors hover:bg-black/40"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="space-y-4 p-5">
