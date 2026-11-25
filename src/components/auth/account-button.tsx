@@ -84,12 +84,14 @@ export function AccountButton() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="panel-glass border-line min-w-[15rem] overflow-hidden rounded-2xl p-0 shadow-2xl"
+        sideOffset={10}
+        collisionPadding={12}
+        className="panel-solid border-line min-w-[13.5rem] overflow-hidden rounded-2xl p-0 shadow-2xl"
       >
         {/* gradient header — same language as the auth modal hero band */}
-        <div className="metallic-gradient relative flex items-center gap-3 overflow-hidden px-4 py-3.5">
+        <div className="metallic-gradient relative flex items-center gap-3 overflow-hidden px-4 py-3">
           <span className="pointer-events-none absolute -left-8 -top-10 h-24 w-24 rounded-full bg-white/15 blur-xl" />
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-extrabold text-white ring-1 ring-white/40">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-extrabold text-white ring-1 ring-white/40">
             {letter}
           </span>
           <span className="min-w-0">

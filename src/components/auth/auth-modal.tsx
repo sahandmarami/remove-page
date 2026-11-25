@@ -432,7 +432,7 @@ export function AuthModal() {
 
   return (
     <Dialog open={authOpen} onOpenChange={(o) => (o ? null : closeAuth())}>
-      <DialogContent className="max-w-[25rem] gap-0 overflow-hidden panel-glass border-line p-0 rounded-3xl" showCloseButton={false}>
+      <DialogContent className="panel-solid max-w-[25rem] gap-0 overflow-hidden border-line p-0 rounded-3xl shadow-2xl" showCloseButton={false}>
         <DialogTitle className="sr-only">حساب کاربری Remove Page</DialogTitle>
 
         {/* brand hero band */}
