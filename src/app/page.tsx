@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Clapperboard, Eraser, Film, Loader2, Scissors } from "lucide-react";
+import { Bot, Clapperboard, Eraser, Film, Loader2, Scissors } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountButton } from "@/components/auth/account-button";
 import { AuthGate } from "@/components/auth/auth-gate";
@@ -10,7 +9,8 @@ import { BgRemove } from "@/components/studio/bg-remove";
 import { SheetCutter } from "@/components/studio/sheet-cutter";
 import { VideoStudio } from "@/components/studio/video-studio";
 import { Animator } from "@/components/studio/animator";
-import { useFrameStore } from "@/lib/store";
+import { Assistant } from "@/components/studio/assistant";
+import { useFrameStore, useUiStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 /** static-export basePath — empty in dev */
@@ -21,12 +21,12 @@ const TABS = [
   { id: "sheet", icon: Scissors, label: "برش شیت" },
   { id: "video", icon: Film, label: "ویدیو و گیف" },
   { id: "anim", icon: Clapperboard, label: "انیماتور" },
+  { id: "ai", icon: Bot, label: "دستیار" },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
-
 export default function Home() {
-  const [tab, setTab] = useState<TabId>("remove");
+  const tab = useUiStore((s) => s.activeTab);
+  const setTab = useUiStore((s) => s.setActiveTab);
   const { user, initializing } = useAuth();
   const frameCount = useFrameStore((s) => s.frames.length);
 
@@ -83,7 +83,7 @@ export default function Home() {
         ) : (
           <>
             {/* segmented tool switcher */}
-            <nav className="mb-3 grid grid-cols-4 gap-1 rounded-2xl border border-line bg-surface p-1.5 sm:gap-2 sm:p-2">
+            <nav className="mb-3 grid grid-cols-5 gap-1 rounded-2xl border border-line bg-surface p-1.5 sm:gap-2 sm:p-2">
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -107,6 +107,7 @@ export default function Home() {
             {tab === "sheet" && <SheetCutter />}
             {tab === "video" && <VideoStudio />}
             {tab === "anim" && <Animator />}
+            {tab === "ai" && <Assistant />}
           </>
         )}
       </main>

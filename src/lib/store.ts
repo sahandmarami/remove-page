@@ -109,3 +109,83 @@ export const useFrameStore = create<FrameState>((set) => ({
 
   setSelected: (id) => set({ selectedFrameId: id }),
 }));
+
+/* ------------------------------------------------------------------ */
+/* UI state — active tool tab (shared so the AI assistant can switch)  */
+/* ------------------------------------------------------------------ */
+
+export type TabId = "remove" | "sheet" | "video" | "anim" | "ai";
+
+interface UiState {
+  activeTab: TabId;
+  setActiveTab: (t: TabId) => void;
+}
+
+export const useUiStore = create<UiState>((set) => ({
+  activeTab: "remove",
+  setActiveTab: (activeTab) => set({ activeTab }),
+}));
+
+/* ------------------------------------------------------------------ */
+/* AI assistant — BYOK (bring your own key) chat with real tools       */
+/* ------------------------------------------------------------------ */
+
+export interface AiSettings {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface UiMessage {
+  role: "user" | "assistant";
+  content: string;
+  tools?: string[];
+}
+
+const AI_LS_KEY = "rp-ai-settings";
+
+function loadAiSettings(): AiSettings {
+  if (typeof window === "undefined") return { baseUrl: "", apiKey: "", model: "" };
+  try {
+    const raw = localStorage.getItem(AI_LS_KEY);
+    if (!raw) return { baseUrl: "", apiKey: "", model: "" };
+    const p = JSON.parse(raw) as AiSettings;
+    if (
+      typeof p.baseUrl === "string" &&
+      typeof p.apiKey === "string" &&
+      typeof p.model === "string"
+    ) {
+      return p;
+    }
+  } catch {
+    /* corrupted → defaults */
+  }
+  return { baseUrl: "", apiKey: "", model: "" };
+}
+
+interface AssistantState {
+  aiSettings: AiSettings;
+  saveAiSettings: (s: AiSettings) => void;
+  messages: UiMessage[];
+  pushMessage: (m: UiMessage) => void;
+  clearMessages: () => void;
+  aiBusy: boolean;
+  setAiBusy: (b: boolean) => void;
+}
+
+export const useAssistantStore = create<AssistantState>((set) => ({
+  aiSettings: loadAiSettings(),
+  saveAiSettings: (s) => {
+    try {
+      localStorage.setItem(AI_LS_KEY, JSON.stringify(s));
+    } catch {
+      /* private mode — keep in memory only */
+    }
+    set({ aiSettings: s });
+  },
+  messages: [],
+  pushMessage: (m) => set((s) => ({ messages: [...s.messages, m] })),
+  clearMessages: () => set({ messages: [] }),
+  aiBusy: false,
+  setAiBusy: (aiBusy) => set({ aiBusy }),
+}));
