@@ -131,6 +131,7 @@ export const useUiStore = create<UiState>((set) => ({
 /* ------------------------------------------------------------------ */
 
 export interface AiSettings {
+  mode: "free" | "byok";
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -143,24 +144,35 @@ export interface UiMessage {
 }
 
 const AI_LS_KEY = "rp-ai-settings";
+const DEFAULT_AI_SETTINGS: AiSettings = {
+  mode: "free",
+  baseUrl: "",
+  apiKey: "",
+  model: "",
+};
 
 function loadAiSettings(): AiSettings {
-  if (typeof window === "undefined") return { baseUrl: "", apiKey: "", model: "" };
+  if (typeof window === "undefined") return DEFAULT_AI_SETTINGS;
   try {
     const raw = localStorage.getItem(AI_LS_KEY);
-    if (!raw) return { baseUrl: "", apiKey: "", model: "" };
-    const p = JSON.parse(raw) as AiSettings;
+    if (!raw) return DEFAULT_AI_SETTINGS;
+    const p = JSON.parse(raw) as Partial<AiSettings>;
+    // saved keys without `mode` (old version) → BYOK
     if (
       typeof p.baseUrl === "string" &&
       typeof p.apiKey === "string" &&
-      typeof p.model === "string"
+      typeof p.model === "string" &&
+      p.apiKey
     ) {
-      return p;
+      return { mode: "byok", baseUrl: p.baseUrl, apiKey: p.apiKey, model: p.model };
+    }
+    if (p.mode === "free" && typeof p.model === "string" && p.model) {
+      return { mode: "free", baseUrl: "", apiKey: "", model: p.model };
     }
   } catch {
     /* corrupted → defaults */
   }
-  return { baseUrl: "", apiKey: "", model: "" };
+  return DEFAULT_AI_SETTINGS;
 }
 
 interface AssistantState {

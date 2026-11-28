@@ -152,6 +152,79 @@ export class AiHttpError extends Error {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Puter.js — keyless free mode (user-pays: on first use a free Puter  */
+/* sign-in popup appears; OpenAI-style tools supported)                */
+/* ------------------------------------------------------------------ */
+
+interface PuterLike {
+  ai: { chat: (m: unknown, o?: unknown) => Promise<unknown> };
+}
+
+let puterPromise: Promise<PuterLike> | null = null;
+
+function loadPuter(): Promise<PuterLike> {
+  if (!puterPromise) {
+    puterPromise = new Promise((resolve, reject) => {
+      const w = window as unknown as { puter?: PuterLike };
+      if (w.puter) return resolve(w.puter);
+      const sc = document.createElement("script");
+      sc.src = "https://js.puter.com/v2/";
+      sc.async = true;
+      sc.onload = () =>
+        w.puter ? resolve(w.puter) : reject(new Error("puter.js لود شد ولی در دسترس نیست"));
+      sc.onerror = () => reject(new Error("لود puter.js ناموفق بود — شبکه یا فیلتر"));
+      document.head.appendChild(sc);
+    });
+  }
+  return puterPromise;
+}
+
+function puterContent(c: unknown): string {
+  if (typeof c === "string") return c;
+  if (Array.isArray(c))
+    return c
+      .map((p) =>
+        p && typeof p === "object" && "text" in p
+          ? String((p as { text?: unknown }).text ?? "")
+          : String(p ?? "")
+      )
+      .join("");
+  return "";
+}
+
+/** one assistant turn via Puter — messages in, OpenAI-shaped message out */
+async function puterTurn(s: AiSettings, msgs: ApiMessage[]): Promise<ApiMessage> {
+  const puter = await loadPuter();
+  const clean = msgs
+    .filter((m) => m.role !== "tool")
+    .map((m) => ({ role: m.role, content: m.content }));
+  const resp = (await puter.ai.chat(clean, {
+    model: s.model || "gpt-4o-mini",
+    temperature: 0.4,
+  })) as {
+    message?: { content?: unknown; tool_calls?: Array<Record<string, unknown>> };
+  };
+  const m = resp?.message ?? {};
+  const tool_calls = (m.tool_calls ?? []).map((tc, i) => {
+    const fn = (tc?.function ?? {}) as { name?: string; arguments?: unknown };
+    return {
+      id: typeof tc?.id === "string" ? tc.id : `call_${i}`,
+      type: "function" as const,
+      function: {
+        name: fn.name ?? "",
+        arguments:
+          typeof fn.arguments === "string" ? fn.arguments : JSON.stringify(fn.arguments ?? {}),
+      },
+    };
+  });
+  return {
+    role: "assistant",
+    content: puterContent(m.content),
+    tool_calls: tool_calls.length ? tool_calls : undefined,
+  };
+}
+
 async function callChat(
   s: AiSettings,
   messages: ApiMessage[],
@@ -198,10 +271,19 @@ export async function chatWithAssistant(
   for (let round = 0; round < 6; round++) {
     let msg: ApiMessage;
     try {
-      msg = await callChat(s, api, allowTools);
+      msg =
+        s.mode === "free"
+          ? await puterTurn(s, api)
+          : await callChat(s, api, allowTools);
     } catch (err) {
       // some models/providers reject tools — degrade gracefully once
-      if (allowTools && err instanceof AiHttpError && err.status === 400 && /tool/i.test(err.body)) {
+      if (
+        s.mode === "byok" &&
+        allowTools &&
+        err instanceof AiHttpError &&
+        err.status === 400 &&
+        /tool/i.test(err.body)
+      ) {
         allowTools = false;
         continue;
       }
@@ -212,16 +294,36 @@ export async function chatWithAssistant(
       return { reply: msg.content?.trim() || "(بدون پاسخ)", toolsUsed };
     }
 
-    api.push(msg);
-    for (const tc of msg.tool_calls) {
-      let result: string;
-      try {
-        result = await executeTool(tc.function.name, tc.function.arguments || "{}");
-        toolsUsed.push(tc.function.name);
-      } catch (e) {
-        result = e instanceof Error ? `خطا: ${e.message}` : "خطای ناشناخته";
+    if (s.mode === "free") {
+      // Puter has no `tool` role — feed results back as a user message
+      api.push({ role: "assistant", content: msg.content ?? "(درخواست ابزار)" });
+      const results: { name: string; result: string }[] = [];
+      for (const tc of msg.tool_calls) {
+        let result: string;
+        try {
+          result = await executeTool(tc.function.name, tc.function.arguments || "{}");
+          toolsUsed.push(tc.function.name);
+        } catch (e) {
+          result = e instanceof Error ? `خطا: ${e.message}` : "خطای ناشناخته";
+        }
+        results.push({ name: tc.function.name, result });
       }
-      api.push({ role: "tool", tool_call_id: tc.id, content: result });
+      api.push({
+        role: "user",
+        content: `نتایج اجرای ابزارها:\n${JSON.stringify(results)}\nحالا بر اساس همین نتایج پاسخ نهایی کوتاه فارسی بده.`,
+      });
+    } else {
+      api.push(msg);
+      for (const tc of msg.tool_calls) {
+        let result: string;
+        try {
+          result = await executeTool(tc.function.name, tc.function.arguments || "{}");
+          toolsUsed.push(tc.function.name);
+        } catch (e) {
+          result = e instanceof Error ? `خطا: ${e.message}` : "خطای ناشناخته";
+        }
+        api.push({ role: "tool", tool_call_id: tc.id, content: result });
+      }
     }
   }
   return { reply: "کار انجام شد اما پاسخ نهایی نرسید — دوباره امتحان کن.", toolsUsed };
@@ -229,6 +331,14 @@ export async function chatWithAssistant(
 
 /** quick connection test for the settings form */
 export async function testConnection(s: AiSettings): Promise<string> {
+  if (s.mode === "free") {
+    const puter = await loadPuter();
+    const resp = (await puter.ai.chat(
+      [{ role: "user", content: "فقط کلمه ok را جواب بده" }],
+      { model: s.model || "gpt-4o-mini" }
+    )) as { message?: { content?: unknown } };
+    return puterContent(resp?.message?.content).trim() || "ok";
+  }
   const msg = await callChat(
     s,
     [{ role: "user", content: "فقط کلمه ok را جواب بده" }],
@@ -246,7 +356,15 @@ export function friendlyAiError(err: unknown): string {
     if (err.status === 402) return "اعتبار حساب سرویس تمام شده";
     return `سرویس خطا داد (کد ${err.status})`;
   }
-  if (err instanceof TypeError) return "اتصال برقرار نشد — آدرس سرویس، اینترنت یا مسدودی CORS را چک کن";
-  if (err instanceof Error && err.message) return err.message;
+  if (err instanceof TypeError)
+    return "اتصال برقرار نشد — آدرس سرویس، اینترنت یا مسدودی CORS را چک کن";
+  if (err instanceof Error && err.message) {
+    const m = err.message;
+    if (/auth|sign|login|permission|token|401/i.test(m))
+      return "برای حالت رایگان باید در پنجره‌ی Puter وارد شوی — یک اکانت رایگان بساز (با جیمیل هم می‌شود) و دوباره امتحان کن";
+    if (/usage|limit|quota|credit|429/i.test(m))
+      return "سقف استفاده‌ی رایگان Puter الان پر شده — کمی بعد امتحان کن یا کلید شخصی بده";
+    return m;
+  }
   return "خطای ناشناخته";
 }

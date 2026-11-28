@@ -9,6 +9,7 @@ import {
   Send,
   Settings2,
   ShieldCheck,
+  Sparkles,
   Trash2,
   Wrench,
   XCircle,
@@ -24,6 +25,7 @@ import {
   type AiSettings,
   type TabId,
 } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 /** provider presets — any OpenAI-compatible /chat/completions endpoint works */
 const PRESETS: { name: string; baseUrl: string; model: string }[] = [
@@ -31,6 +33,13 @@ const PRESETS: { name: string; baseUrl: string; model: string }[] = [
   { name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openrouter/auto" },
   { name: "Groq", baseUrl: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
   { name: "z.ai (GLM)", baseUrl: "https://api.z.ai/api/paas/v4", model: "glm-4-flash" },
+];
+
+/** keyless free mode runs on Puter.js (user-pays, no developer key) */
+const FREE_MODELS = [
+  { id: "gpt-4o-mini", label: "سریع (پیشنهادی)" },
+  { id: "gpt-4.1-mini", label: "متعادل" },
+  { id: "gpt-5-mini", label: "قوی‌تر" },
 ];
 
 const SUGGESTIONS = [
@@ -69,6 +78,10 @@ export function Assistant() {
   const setActiveTab = useUiStore((s) => s.setActiveTab);
 
   const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<"free" | "byok">(aiSettings.mode);
+  const [freeModel, setFreeModel] = useState(
+    aiSettings.mode === "free" && aiSettings.model ? aiSettings.model : "gpt-4o-mini"
+  );
   const [draft, setDraft] = useState<AiSettings>(aiSettings);
   const [testState, setTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [testMsg, setTestMsg] = useState("");
@@ -76,15 +89,40 @@ export function Assistant() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const busy = aiBusy || testState === "testing";
+  const configured =
+    aiSettings.mode === "byok" ? !!aiSettings.apiKey : !!aiSettings.model;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, aiBusy]);
 
   function openSettings() {
+    setMode(aiSettings.mode);
+    setFreeModel(aiSettings.model || "gpt-4o-mini");
     setDraft(aiSettings);
     setTestState("idle");
+    setTestMsg("");
     setEditing(true);
+  }
+
+  async function activateFree() {
+    setTestState("testing");
+    setTestMsg("");
+    try {
+      const reply = await testConnection({
+        mode: "free",
+        baseUrl: "",
+        apiKey: "",
+        model: freeModel,
+      });
+      saveAiSettings({ mode: "free", baseUrl: "", apiKey: "", model: freeModel });
+      setTestState("ok");
+      setTestMsg(`دستیار فعال شد ✓ — جواب سرویس: ${reply.slice(0, 40)}`);
+      setTimeout(() => setEditing(false), 900);
+    } catch (err) {
+      setTestState("fail");
+      setTestMsg(friendlyAiError(err));
+    }
   }
 
   async function saveAndTest() {
@@ -92,8 +130,14 @@ export function Assistant() {
     setTestState("testing");
     setTestMsg("");
     try {
-      const reply = await testConnection(draft);
-      saveAiSettings(draft);
+      const byok: AiSettings = {
+        mode: "byok",
+        baseUrl: draft.baseUrl,
+        apiKey: draft.apiKey,
+        model: draft.model,
+      };
+      const reply = await testConnection(byok);
+      saveAiSettings(byok);
       setTestState("ok");
       setTestMsg(`اتصال برقراره ✓ — جواب سرویس: ${reply.slice(0, 40)}`);
       setTimeout(() => setEditing(false), 900);
@@ -125,95 +169,167 @@ export function Assistant() {
   }
 
   /* ---------------- settings view ---------------- */
-  if (editing || !aiSettings.apiKey) {
+  if (editing || !configured) {
     return (
       <div className="flex flex-col gap-3 pb-2">
         <div className="panel-solid rounded-3xl border-line p-5 shadow-xl">
           <div className="flex items-center gap-3">
             <span className="metallic-gradient hero-icon-float hero-icon-glow grid h-12 w-12 shrink-0 place-items-center rounded-2xl shadow-lg">
-              <KeyRound className="h-6 w-6 text-white" />
+              {mode === "free" ? (
+                <Sparkles className="h-6 w-6 text-white" />
+              ) : (
+                <KeyRound className="h-6 w-6 text-white" />
+              )}
             </span>
             <div>
               <p className="text-base font-black">اتصال دستیار هوشمند</p>
               <p className="mt-0.5 text-[11px] leading-5 text-soft">
-                کلید API خودت را بده تا دستیار داخل سایت کارها را انجام بدهد — تعویض تب،
+                هوش مصنوعی را وصل کن تا داخل سایت کارها را انجام بدهد — تعویض تب،
                 مرتب‌سازی فریم‌ها، خروجی گرفتن و راهنمایی.
               </p>
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {PRESETS.map((p) => (
-              <button
-                key={p.name}
-                type="button"
-                onClick={() => setDraft((d) => ({ ...d, baseUrl: p.baseUrl, model: p.model }))}
-                className="rounded-lg border border-line bg-chip px-2.5 py-1.5 text-[10px] font-extrabold text-soft transition-colors hover:border-violet-line hover:text-violet-ink"
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 flex flex-col gap-3">
-            <Field label="آدرس سرویس (OpenAI-compatible)">
-              <input
-                dir="ltr"
-                value={draft.baseUrl}
-                onChange={(e) => setDraft((d) => ({ ...d, baseUrl: e.target.value }))}
-                placeholder="https://api.openai.com/v1"
-                className={`${inputCls} text-left`}
-                spellCheck={false}
-              />
-            </Field>
-            <Field label="نام مدل">
-              <input
-                dir="ltr"
-                value={draft.model}
-                onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
-                placeholder="gpt-4o-mini"
-                className={`${inputCls} text-left`}
-                spellCheck={false}
-              />
-            </Field>
-            <Field label="کلید API">
-              <input
-                dir="ltr"
-                type="password"
-                value={draft.apiKey}
-                onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
-                placeholder="sk-…"
-                className={`${inputCls} text-left`}
-                spellCheck={false}
-                autoComplete="off"
-              />
-            </Field>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2">
+          {/* mode switcher */}
+          <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl border border-line bg-surface p-1">
             <button
               type="button"
-              disabled={busy || !draft.apiKey.trim()}
-              onClick={saveAndTest}
-              className="btn-shine metallic-gradient flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-extrabold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
-            >
-              {testState === "testing" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4.5 w-4.5" />
+              onClick={() => setMode("free")}
+              aria-pressed={mode === "free"}
+              className={cn(
+                "flex items-center justify-center gap-1.5 rounded-lg py-2 text-[11px] font-extrabold transition-all",
+                mode === "free"
+                  ? "metallic-gradient text-white shadow-md"
+                  : "text-soft hover:text-foreground"
               )}
-              ذخیره و تست اتصال
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              رایگان — بدون کلید
             </button>
-            {aiSettings.apiKey && (
+            <button
+              type="button"
+              onClick={() => setMode("byok")}
+              aria-pressed={mode === "byok"}
+              className={cn(
+                "flex items-center justify-center gap-1.5 rounded-lg py-2 text-[11px] font-extrabold transition-all",
+                mode === "byok"
+                  ? "metallic-gradient text-white shadow-md"
+                  : "text-soft hover:text-foreground"
+              )}
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              کلید شخصی
+            </button>
+          </div>
+
+          {mode === "free" ? (
+            <div className="mt-4">
+              <p className="rounded-xl border border-emerald-line bg-emerald-tint px-3 py-2.5 text-[11px] font-bold leading-6 text-emerald-ink">
+                بدون ساختن هیچ کلیدی: «فعال‌سازی» را بزن؛ یک پنجره از Puter باز می‌شود —
+                با یک اکانت رایگان وارد شو (با جیمیل هم می‌شود). از آن بعد دستیار کار
+                می‌کند و مصرفش روی اکانت رایگان خودِ همان کاربر حساب می‌شود.
+              </p>
+              <p className="mb-2 mt-3 text-xs font-extrabold text-soft">مدل هوش مصنوعی:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {FREE_MODELS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setFreeModel(m.id)}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1.5 text-[10px] font-extrabold transition-colors",
+                      freeModel === m.id
+                        ? "border-violet-line bg-violet-tint text-violet-ink"
+                        : "border-line bg-chip text-soft hover:text-foreground"
+                    )}
+                  >
+                    {m.label}
+                    <span dir="ltr" className="text-faint">
+                      {" "}
+                      · {m.id}
+                    </span>
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
-                onClick={() => setEditing(false)}
-                className="h-11 rounded-xl border border-line bg-chip px-4 text-xs font-extrabold text-soft transition-colors hover:text-foreground"
+                disabled={busy}
+                onClick={activateFree}
+                className="btn-shine metallic-gradient mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-extrabold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
               >
-                انصراف
+                {testState === "testing" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4.5 w-4.5" />
+                )}
+                فعال‌سازی دستیار رایگان
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-1.5">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => setDraft((d) => ({ ...d, baseUrl: p.baseUrl, model: p.model }))}
+                    className="rounded-lg border border-line bg-chip px-2.5 py-1.5 text-[10px] font-extrabold text-soft transition-colors hover:border-violet-line hover:text-violet-ink"
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3 flex flex-col gap-3">
+                <Field label="آدرس سرویس (OpenAI-compatible)">
+                  <input
+                    dir="ltr"
+                    value={draft.baseUrl}
+                    onChange={(e) => setDraft((d) => ({ ...d, baseUrl: e.target.value }))}
+                    placeholder="https://api.openai.com/v1"
+                    className={`${inputCls} text-left`}
+                    spellCheck={false}
+                  />
+                </Field>
+                <Field label="نام مدل">
+                  <input
+                    dir="ltr"
+                    value={draft.model}
+                    onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
+                    placeholder="gpt-4o-mini"
+                    className={`${inputCls} text-left`}
+                    spellCheck={false}
+                  />
+                </Field>
+                <Field label="کلید API">
+                  <input
+                    dir="ltr"
+                    type="password"
+                    value={draft.apiKey}
+                    onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
+                    placeholder="sk-…"
+                    className={`${inputCls} text-left`}
+                    spellCheck={false}
+                    autoComplete="off"
+                  />
+                </Field>
+              </div>
+
+              <button
+                type="button"
+                disabled={busy || !draft.apiKey.trim()}
+                onClick={saveAndTest}
+                className="btn-shine metallic-gradient mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-extrabold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
+              >
+                {testState === "testing" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4.5 w-4.5" />
+                )}
+                ذخیره و تست اتصال
+              </button>
+            </div>
+          )}
 
           {testMsg && (
             <p
@@ -234,8 +350,9 @@ export function Assistant() {
 
           <p className="mt-3 flex items-start gap-1.5 text-[10px] leading-5 text-faint">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neon" />
-            کلید فقط داخل مرورگر خودت ذخیره می‌شود و مستقیم به سرویسی که انتخاب کردی
-            فرستاده می‌شود — این سایت سرور ندارد که درگیرش شود.
+            {mode === "free"
+              ? "حالت رایگان از سرویس Puter استفاده می‌کند — کلیدی وجود ندارد که ذخیره شود و چیزی از تصاویرت جایی نمی‌رود."
+              : "کلید فقط داخل مرورگر خودت ذخیره می‌شود و مستقیم به سرویسی که انتخاب کردی فرستاده می‌شود — این سایت سرور ندارد که درگیرش شود."}
           </p>
         </div>
       </div>
@@ -253,7 +370,7 @@ export function Assistant() {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-extrabold">دستیار هوشمند</p>
           <p dir="ltr" className="truncate text-left text-[10px] font-bold text-faint">
-            {aiSettings.model}
+            {aiSettings.mode === "free" ? `Puter · ${aiSettings.model}` : aiSettings.model}
           </p>
         </div>
         <button
